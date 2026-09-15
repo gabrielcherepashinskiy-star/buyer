@@ -1,0 +1,67 @@
+// SHOP SELECT NYC — Buying Desk
+// Records outright purchases (cost + resale price + condition), pushes to
+// Shopify, syncs to Google Sheets, and emails receipts to sellers.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Vercel's Neon integration injects these automatically:
+  //   DATABASE_URL          → pooled, used by the running app
+  //   DATABASE_URL_UNPOOLED → direct, used for `prisma db push`/migrations
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Purchase {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Human-friendly identifiers
+  sku           String @unique
+  receiptNumber String @unique
+
+  // Product details
+  title       String
+  brand       String?
+  category    String?
+  condition   String // New, Like New, Excellent, Very Good, Good, Fair
+  description String?
+  quantity    Int     @default(1)
+
+  // Money (stored in cents to avoid float errors)
+  costCents  Int // what we paid the seller
+  priceCents Int // resale price we set
+  currency   String @default("USD")
+
+  // Who logged this purchase (one of the master-key holders)
+  recordedBy String?
+
+  // Seller (exactly what we collect: full name, government ID #, email)
+  sellerName    String
+  sellerEmail   String
+  sellerIdEnc   String? // encrypted government ID number
+  sellerIdLast4 String? // last 4 chars for display/verification
+
+  // Shopify sync
+  shopifyProductId String?
+  shopifyVariantId String?
+  shopifyHandle    String?
+  shopifyStatus    String  @default("pending") // pending | active | error | skipped
+  shopifyError     String?
+  shopifySyncedAt  DateTime?
+
+  // Google Sheets sync
+  sheetSyncedAt DateTime?
+  sheetError    String?
+
+  // Receipt
+  receiptSentAt DateTime?
+  receiptError  String?
+
+  @@index([createdAt])
+  @@index([sellerEmail])
+}
