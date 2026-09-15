@@ -8,9 +8,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Single connection string. Set DATABASE_URL in Vercel to your Neon
-  // connection string (the direct/non-pooling one is safest for db push).
-  url      = env("DATABASE_URL")
+  // Connection string set directly so the build/runtime don't depend on
+  // Vercel env vars. NOTE: this is a live credential in the repo — after the
+  // app is confirmed working, rotate the Neon password and switch this line
+  // back to url = env("DATABASE_URL").
+  url = "postgresql://neondb_owner:npg_J0Z5xaITjoDU@ep-weathered-paper-awb8ejho.c-12.us-east-1.aws.neon.tech/neondb?sslmode=require"
 }
 
 model Purchase {
