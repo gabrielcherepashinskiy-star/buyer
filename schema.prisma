@@ -8,11 +8,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Vercel's Neon integration injects these automatically:
-  //   DATABASE_URL          → pooled, used by the running app
-  //   DATABASE_URL_UNPOOLED → direct, used for `prisma db push`/migrations
-  url       = env("DATABASE_URL")
-  directUrl = env("DATABASE_URL_UNPOOLED")
+  // Single connection string. Set DATABASE_URL in Vercel to your Neon
+  // connection string (the direct/non-pooling one is safest for db push).
+  url      = env("DATABASE_URL")
 }
 
 model Purchase {
