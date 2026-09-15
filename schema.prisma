@@ -8,11 +8,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Connection string set directly so the build/runtime don't depend on
-  // Vercel env vars. NOTE: this is a live credential in the repo — after the
-  // app is confirmed working, rotate the Neon password and switch this line
-  // back to url = env("DATABASE_URL").
-  url = "postgresql://neondb_owner:npg_J0Z5xaITjoDU@ep-weathered-paper-awb8ejho.c-12.us-east-1.aws.neon.tech/neondb?sslmode=require"
+  // Connection string comes from the DATABASE_URL environment variable set in
+  // Vercel — never hardcode a credential in this file.
+  url = env("DATABASE_URL")
 }
 
 model Purchase {
