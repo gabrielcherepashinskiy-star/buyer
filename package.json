@@ -1,0 +1,41 @@
+{
+  "name": "select-buy",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "description": "SHOP SELECT NYC — Buying Desk. Record purchases, push to Shopify, sync to Google Sheets, email receipts.",
+  "scripts": {
+    "build": "remix vite:build",
+    "dev": "remix vite:dev",
+    "start": "remix-serve ./build/server/index.js",
+    "typecheck": "tsc",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "vercel-build": "prisma generate && prisma db push --accept-data-loss && remix vite:build",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@remix-run/node": "2.16.7",
+    "@remix-run/react": "2.16.7",
+    "@remix-run/serve": "2.16.7",
+    "@vercel/remix": "2.16.7",
+    "google-auth-library": "^9.15.0",
+    "isbot": "^5.1.17",
+    "pdf-lib": "^1.17.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@remix-run/dev": "2.16.7",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "prisma": "^5.22.0",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11",
+    "vite-tsconfig-paths": "^5.1.4"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
