@@ -8,11 +8,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Vercel's Postgres (Neon) integration injects these automatically:
-  //   POSTGRES_PRISMA_URL     → pooled, used by the running app
-  //   POSTGRES_URL_NON_POOLING → direct, used for `prisma db push`/migrations
-  url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  // Connection string comes from the DATABASE_URL environment variable set in
+  // Vercel — never hardcode a credential in this file.
+  url = env("DATABASE_URL")
 }
 
 model Purchase {
@@ -28,6 +26,7 @@ model Purchase {
   title       String
   brand       String?
   category    String?
+  size        String? // e.g. shoe/clothing size, when applicable
   condition   String // New, Like New, Excellent, Very Good, Good, Fair
   description String?
   quantity    Int     @default(1)

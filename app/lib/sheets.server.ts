@@ -11,6 +11,7 @@ const HEADERS = [
   "Item",
   "Brand",
   "Category",
+  "Size",
   "Condition",
   "Qty",
   "Cost",
@@ -82,7 +83,7 @@ async function sheetsFetch(path: string, token: string, init?: RequestInit) {
 /** Ensure the tab exists and has a header row. Safe to call repeatedly. */
 async function ensureHeader(token: string): Promise<void> {
   const id = sheetId();
-  const range = encodeURIComponent(`${tab()}!A1:R1`);
+  const range = encodeURIComponent(`${tab()}!A1:S1`);
   const data = (await sheetsFetch(`${id}/values/${range}`, token)) as {
     values?: string[][];
   };
@@ -106,6 +107,7 @@ export type SheetRow = {
   title: string;
   brand: string;
   category: string;
+  size: string;
   condition: string;
   quantity: number;
   costDollars: number;
@@ -136,6 +138,7 @@ export async function appendPurchaseRow(row: SheetRow): Promise<void> {
       row.title,
       row.brand,
       row.category,
+      row.size,
       row.condition,
       row.quantity,
       row.costDollars,

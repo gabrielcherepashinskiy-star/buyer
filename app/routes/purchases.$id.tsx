@@ -99,6 +99,12 @@ export default function PurchaseDetail() {
                 <dd>{p.category}</dd>
               </>
             ) : null}
+            {p.size ? (
+              <>
+                <dt>Size</dt>
+                <dd>{p.size}</dd>
+              </>
+            ) : null}
             <dt>Quantity</dt>
             <dd>{p.quantity}</dd>
             <dt>Cost paid</dt>

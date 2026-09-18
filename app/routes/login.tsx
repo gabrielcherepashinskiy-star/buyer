@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Form, useActionData, useNavigation, useSearchParams } from "@remix-run/react";
-import { createUserSession, getUser, verifyKey } from "~/lib/session.server";
+import { createUserSession, getUser, verifyCredentials } from "~/lib/session.server";
 
 export const meta: MetaFunction = () => [{ title: "Sign in · Buying Desk" }];
 
@@ -13,11 +13,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
-  const key = String(form.get("key") || "");
+  const username = String(form.get("username") || "");
+  const password = String(form.get("password") || "");
   const redirectTo = String(form.get("redirectTo") || "/");
-  const name = verifyKey(key);
+  const name = verifyCredentials(username, password);
   if (!name) {
-    return json({ error: "That master key wasn't recognized." }, { status: 401 });
+    return json({ error: "Incorrect username or password." }, { status: 401 });
   }
   const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/";
   return createUserSession(name, safeRedirect);
@@ -36,19 +37,32 @@ export default function Login() {
           <span style={{ fontSize: 18 }}>Buying Desk</span>
         </div>
         <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-          SHOP SELECT NYC · enter your master key
+          SHOP SELECT NYC · sign in
         </p>
         {actionData?.error ? <div className="alert err">{actionData.error}</div> : null}
         <Form method="post">
           <input type="hidden" name="redirectTo" value={params.get("redirectTo") || "/"} />
           <div className="field" style={{ marginTop: 10 }}>
-            <label htmlFor="key">Master key</label>
+            <label htmlFor="username">Username</label>
             <input
-              id="key"
-              name="key"
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoFocus
+              required
+              placeholder="Gabriel"
+            />
+          </div>
+          <div className="field" style={{ marginTop: 12 }}>
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              name="password"
               type="password"
               autoComplete="current-password"
-              autoFocus
               required
               placeholder="••••••••••••"
             />

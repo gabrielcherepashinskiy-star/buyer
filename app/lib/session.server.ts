@@ -1,37 +1,46 @@
 import { createCookieSessionStorage, redirect } from "@remix-run/node";
 import crypto from "node:crypto";
 
-// ── Two master keys ────────────────────────────────────────────
-// Each partner has their own key. Whichever key is entered identifies
-// that person, so every purchase can be tagged with who logged it.
+// ── Username + password login ──────────────────────────────────
+// Two accounts, each with a username and password set via environment
+// variables. Every purchase is tagged with the username that recorded it.
+//   USER1_NAME / USER1_PASSWORD   (e.g. Gabriel)
+//   USER2_NAME / USER2_PASSWORD   (partner)
+// (USER1_KEY / USER2_KEY are still accepted as the password, for backward
+// compatibility with an earlier setup.)
 
 export type AppUser = { name: string };
 
-function configuredUsers(): { name: string; key: string }[] {
-  const users: { name: string; key: string }[] = [];
-  if (process.env.USER1_KEY) {
-    users.push({ name: process.env.USER1_NAME || "User 1", key: process.env.USER1_KEY });
-  }
-  if (process.env.USER2_KEY) {
-    users.push({ name: process.env.USER2_NAME || "User 2", key: process.env.USER2_KEY });
-  }
-  // Legacy single-key fallback.
+function configuredUsers(): { name: string; password: string }[] {
+  const users: { name: string; password: string }[] = [];
+  const p1 = process.env.USER1_PASSWORD || process.env.USER1_KEY;
+  if (p1) users.push({ name: process.env.USER1_NAME || "User 1", password: p1 });
+  const p2 = process.env.USER2_PASSWORD || process.env.USER2_KEY;
+  if (p2) users.push({ name: process.env.USER2_NAME || "User 2", password: p2 });
+  // Legacy single-password fallback.
   if (users.length === 0 && process.env.ADMIN_PASSWORD) {
-    users.push({ name: process.env.USER1_NAME || "Admin", key: process.env.ADMIN_PASSWORD });
+    users.push({ name: process.env.USER1_NAME || "Admin", password: process.env.ADMIN_PASSWORD });
   }
   return users;
 }
 
-/** Returns the matching user's name, or null if the key is invalid. */
-export function verifyKey(key: string): string | null {
-  const input = (key || "").trim();
-  if (!input) return null;
-  for (const u of configuredUsers()) {
-    // Constant-time compare to avoid timing leaks.
-    const a = Buffer.from(input);
-    const b = Buffer.from(u.key);
-    if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
-      return u.name;
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
+}
+
+/**
+ * Returns the matching user's display name, or null if the username/password
+ * pair is invalid. Username match is case-insensitive; password is exact.
+ */
+export function verifyCredentials(username: string, password: string): string | null {
+  const u = (username || "").trim();
+  const p = password || "";
+  if (!u || !p) return null;
+  for (const acc of configuredUsers()) {
+    if (acc.name.toLowerCase() === u.toLowerCase() && safeEqual(p, acc.password)) {
+      return acc.name;
     }
   }
   return null;

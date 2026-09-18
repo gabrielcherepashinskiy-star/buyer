@@ -20,6 +20,15 @@ export async function generateSku(): Promise<string> {
   return `SSB-${randomBlock(8)}`;
 }
 
+/** Batch receipt number like B-20260915-4821 (for a multi-item purchase). */
+export function generateBatchNumber(): string {
+  const d = new Date();
+  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+  return `B-${ymd}-${randomBlock(4)}`;
+}
+
 /** Receipt number like SSB-20260915-4821 (date + random). Guaranteed unique. */
 export async function generateReceiptNumber(): Promise<string> {
   const d = new Date();

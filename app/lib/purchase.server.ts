@@ -1,10 +1,14 @@
 import { prisma } from "~/db.server";
 import { encrypt, last4 } from "~/lib/crypto.server";
-import { generateReceiptNumber, generateSku } from "~/lib/sku.server";
+import { generateBatchNumber, generateReceiptNumber, generateSku } from "~/lib/sku.server";
 import { pushDraftProduct, shopifyConfigured } from "~/lib/shopify.server";
 import { appendPurchaseRow, sheetsConfigured } from "~/lib/sheets.server";
-import { emailConfigured, sendReceiptEmail } from "~/lib/email.server";
-import { renderReceiptPdf } from "~/lib/receipt-pdf.server";
+import {
+  emailConfigured,
+  sendBatchReceiptEmail,
+  sendReceiptEmail,
+} from "~/lib/email.server";
+import { renderBatchReceiptPdf, renderReceiptPdf } from "~/lib/receipt-pdf.server";
 import { marginPct } from "~/lib/money";
 import type { Purchase } from "@prisma/client";
 
@@ -91,6 +95,175 @@ export async function createPurchase(
   return { purchase, status };
 }
 
+export type BulkRowInput = {
+  title: string;
+  brand?: string;
+  category?: string;
+  size?: string;
+  condition: string;
+  description?: string;
+  quantity: number;
+  costCents: number;
+  priceCents: number;
+};
+
+export type BulkPurchaseInput = {
+  sellerName: string;
+  sellerEmail: string;
+  sellerId: string;
+  currency: string;
+  recordedBy: string;
+  rows: BulkRowInput[];
+};
+
+/**
+ * Record several items bought from one seller in a single visit. Each row
+ * becomes its own Purchase + Shopify draft + sheet row; the seller gets ONE
+ * combined receipt for the whole lot.
+ */
+export async function createBulkPurchase(input: BulkPurchaseInput): Promise<{
+  purchases: Purchase[];
+  status: {
+    shopify: { ok: number; failed: number };
+    sheet: { ok: number; failed: number };
+    receipt: { ok: boolean; message: string };
+  };
+}> {
+  const sellerIdTrimmed = input.sellerId.trim();
+  const sellerIdEnc = sellerIdTrimmed ? encrypt(sellerIdTrimmed) : null;
+  const sellerIdLast4 = sellerIdTrimmed ? last4(sellerIdTrimmed) : null;
+
+  const created: Purchase[] = [];
+  for (const row of input.rows) {
+    const sku = await generateSku();
+    const receiptNumber = await generateReceiptNumber();
+    const p = await prisma.purchase.create({
+      data: {
+        sku,
+        receiptNumber,
+        title: row.title,
+        brand: row.brand || null,
+        category: row.category || null,
+        size: row.size || null,
+        condition: row.condition,
+        description: row.description || null,
+        quantity: row.quantity,
+        costCents: row.costCents,
+        priceCents: row.priceCents,
+        currency: input.currency,
+        sellerName: input.sellerName,
+        sellerEmail: input.sellerEmail,
+        sellerIdEnc,
+        sellerIdLast4,
+        recordedBy: input.recordedBy,
+      },
+    });
+    created.push(p);
+  }
+
+  const status = {
+    shopify: { ok: 0, failed: 0 },
+    sheet: { ok: 0, failed: 0 },
+    receipt: { ok: false, message: "skipped" } as { ok: boolean; message: string },
+  };
+
+  // Push each item to Shopify + the sheet.
+  const refreshed: Purchase[] = [];
+  for (const p of created) {
+    const s = await runShopify(p);
+    s.ok ? status.shopify.ok++ : status.shopify.failed++;
+    const withShopify = await prisma.purchase.findUniqueOrThrow({ where: { id: p.id } });
+    const sh = await runSheet(withShopify);
+    sh.ok ? status.sheet.ok++ : status.sheet.failed++;
+    refreshed.push(await prisma.purchase.findUniqueOrThrow({ where: { id: p.id } }));
+  }
+
+  // One combined receipt for the whole visit.
+  status.receipt = await runBatchReceipt(refreshed);
+
+  const final = await prisma.purchase.findMany({
+    where: { id: { in: created.map((p) => p.id) } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return { purchases: final, status };
+}
+
+async function runBatchReceipt(purchases: Purchase[]): Promise<{ ok: boolean; message: string }> {
+  if (purchases.length === 0) return { ok: false, message: "No items" };
+  const b = biz();
+  const first = purchases[0];
+
+  if (!emailConfigured()) {
+    await prisma.purchase.updateMany({
+      where: { id: { in: purchases.map((p) => p.id) } },
+      data: { receiptError: "Email not configured" },
+    });
+    return { ok: false, message: "Email not configured" };
+  }
+
+  const batchNumber = purchases.length === 1 ? first.receiptNumber : generateBatchNumber();
+
+  try {
+    const items = purchases.map((p) => ({
+      title: p.title,
+      brand: p.brand,
+      size: p.size,
+      condition: p.condition,
+      sku: p.sku,
+      quantity: p.quantity,
+      amountPaidCents: p.costCents,
+    }));
+
+    const pdf = await renderBatchReceiptPdf({
+      businessName: b.name,
+      businessAddress: b.address,
+      businessEmail: b.email,
+      receiptNumber: batchNumber,
+      date: first.createdAt,
+      sellerName: first.sellerName,
+      sellerEmail: first.sellerEmail,
+      sellerIdLast4: first.sellerIdLast4,
+      items,
+      currency: first.currency,
+    });
+    const pdfBase64 = Buffer.from(pdf).toString("base64");
+
+    await sendBatchReceiptEmail({
+      businessName: b.name,
+      businessEmail: b.email,
+      sellerName: first.sellerName,
+      sellerEmail: first.sellerEmail,
+      ownerEmail: b.owner,
+      receiptNumber: batchNumber,
+      date: first.createdAt,
+      items: items.map((it) => ({
+        title: it.title,
+        brand: it.brand,
+        size: it.size,
+        condition: it.condition,
+        amountPaidCents: it.amountPaidCents,
+        quantity: it.quantity,
+      })),
+      currency: first.currency,
+      pdfBase64,
+    });
+
+    await prisma.purchase.updateMany({
+      where: { id: { in: purchases.map((p) => p.id) } },
+      data: { receiptSentAt: new Date(), receiptError: null },
+    });
+    return { ok: true, message: `Receipt emailed to ${first.sellerEmail}` };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown email error";
+    await prisma.purchase.updateMany({
+      where: { id: { in: purchases.map((p) => p.id) } },
+      data: { receiptError: message },
+    });
+    return { ok: false, message };
+  }
+}
+
 async function runShopify(p: Purchase): Promise<{ ok: boolean; message: string }> {
   if (!shopifyConfigured()) {
     await prisma.purchase.update({
@@ -105,6 +278,7 @@ async function runShopify(p: Purchase): Promise<{ ok: boolean; message: string }
       condition: p.condition,
       brand: p.brand,
       category: p.category,
+      size: p.size,
       description: p.description,
       sku: p.sku,
       priceCents: p.priceCents,
@@ -149,6 +323,7 @@ async function runSheet(p: Purchase): Promise<{ ok: boolean; message: string }> 
       title: p.title,
       brand: p.brand || "",
       category: p.category || "",
+      size: p.size || "",
       condition: p.condition,
       quantity: p.quantity,
       costDollars: p.costCents / 100,
@@ -197,6 +372,7 @@ async function runReceipt(p: Purchase): Promise<{ ok: boolean; message: string }
       sellerIdLast4: p.sellerIdLast4,
       title: p.title,
       brand: p.brand,
+      size: p.size,
       condition: p.condition,
       sku: p.sku,
       quantity: p.quantity,
@@ -214,6 +390,7 @@ async function runReceipt(p: Purchase): Promise<{ ok: boolean; message: string }
       date: p.createdAt,
       title: p.title,
       brand: p.brand,
+      size: p.size,
       condition: p.condition,
       sku: p.sku,
       quantity: p.quantity,
@@ -266,6 +443,7 @@ export async function receiptPdfFor(id: string): Promise<{ bytes: Uint8Array; re
     sellerIdLast4: p.sellerIdLast4,
     title: p.title,
     brand: p.brand,
+    size: p.size,
     condition: p.condition,
     sku: p.sku,
     quantity: p.quantity,

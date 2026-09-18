@@ -532,4 +532,73 @@ tbody tr:hover {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  /* Bulk item grid → stacked cards on phones */
+  .table-wrap:has(.bulk-table) {
+    border: none;
+    overflow: visible;
+  }
+  .bulk-table {
+    display: block;
+  }
+  .bulk-table thead {
+    display: none;
+  }
+  .bulk-table tbody {
+    display: block;
+  }
+  .bulk-table tr {
+    display: block;
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card-2);
+    padding: 12px 12px 8px;
+    margin-bottom: 12px;
+  }
+  .bulk-table td {
+    display: block;
+    width: 100%;
+    border: none;
+    padding: 7px 2px;
+  }
+  .bulk-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 5px;
+  }
+  .bulk-table td.rownum {
+    display: inline-block;
+    width: auto;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--violet-2);
+    padding: 0 0 6px;
+  }
+  .bulk-table td.rownum::before {
+    content: "Item ";
+    display: inline;
+    color: var(--violet-2);
+    margin: 0;
+  }
+  .bulk-table td.rowremove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: auto;
+    padding: 0;
+  }
+  .bulk-table td.rowremove::before {
+    content: none;
+  }
+  .bulk-table input,
+  .bulk-table select {
+    width: 100%;
+    font-size: 16px; /* prevents iOS auto-zoom on focus */
+  }
 }

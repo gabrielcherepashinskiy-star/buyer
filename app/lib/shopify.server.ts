@@ -53,6 +53,7 @@ export type ShopifyPushInput = {
   condition: string;
   brand?: string | null;
   category?: string | null;
+  size?: string | null;
   description?: string | null;
   sku: string;
   priceCents: number;
@@ -99,9 +100,13 @@ export async function pushDraftProduct(input: ShopifyPushInput): Promise<Shopify
   const bodyLines: string[] = [];
   if (input.description) bodyLines.push(input.description);
   bodyLines.push(`<p><strong>Condition:</strong> ${escapeHtml(input.condition)}</p>`);
+  if (input.size) bodyLines.push(`<p><strong>Size:</strong> ${escapeHtml(input.size)}</p>`);
   const descriptionHtml = bodyLines.join("\n");
 
+  const productTitle = input.size ? `${input.title} (Size ${input.size})` : input.title;
+
   const tags = ["buying-desk", `condition:${input.condition}`];
+  if (input.size) tags.push(`size:${input.size}`);
 
   // 1) Create the product (a default variant is created automatically).
   const created = await graphql<{
@@ -115,7 +120,7 @@ export async function pushDraftProduct(input: ShopifyPushInput): Promise<Shopify
     };
   }>(CREATE, {
     input: {
-      title: input.title,
+      title: productTitle,
       descriptionHtml,
       vendor: input.brand || undefined,
       productType: input.category || undefined,

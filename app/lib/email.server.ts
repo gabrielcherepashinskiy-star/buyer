@@ -55,6 +55,7 @@ export type ReceiptEmailInput = {
   date: Date;
   title: string;
   brand?: string | null;
+  size?: string | null;
   condition: string;
   sku: string;
   quantity: number;
@@ -65,7 +66,8 @@ export type ReceiptEmailInput = {
 
 /** Send the buying receipt to the seller, cc the owner, with the PDF attached. */
 export async function sendReceiptEmail(input: ReceiptEmailInput): Promise<void> {
-  const itemName = input.brand ? `${input.brand} — ${input.title}` : input.title;
+  let itemName = input.brand ? `${input.brand} — ${input.title}` : input.title;
+  if (input.size) itemName += ` (Size ${input.size})`;
   const dateStr = input.date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -105,6 +107,96 @@ export async function sendReceiptEmail(input: ReceiptEmailInput): Promise<void> 
       }
       <tr><td style="padding:14px 0 0;color:#7a7a85;border-top:1px solid #eee">Amount paid</td><td style="padding:14px 0 0;text-align:right;font-weight:800;font-size:18px;color:#a855f7;border-top:1px solid #eee">${usd(
         input.amountPaidCents,
+        input.currency
+      )}</td></tr>
+    </table>
+    <p style="font-size:13px;line-height:1.5;color:#7a7a85">
+      By completing this sale you confirmed you are the lawful owner of the item(s) with the right to
+      sell, and that the sale is final. Questions? Just reply to this email.
+    </p>
+    <p style="font-size:13px;color:#7a7a85;margin-top:22px">— ${escapeHtml(input.businessName)}</p>
+  </div>`;
+
+  const to = [input.sellerEmail];
+  if (input.ownerEmail && input.ownerEmail !== input.sellerEmail) to.push(input.ownerEmail);
+
+  await sendEmail({
+    to,
+    subject: `Your ${input.businessName} purchase receipt — ${input.receiptNumber}`,
+    html,
+    replyTo: input.businessEmail || input.ownerEmail || undefined,
+    attachments: [{ filename: `receipt-${input.receiptNumber}.pdf`, content: input.pdfBase64 }],
+  });
+}
+
+export type BatchReceiptEmailInput = {
+  businessName: string;
+  businessEmail: string;
+  sellerName: string;
+  sellerEmail: string;
+  ownerEmail?: string | null;
+  receiptNumber: string;
+  date: Date;
+  items: Array<{
+    title: string;
+    brand?: string | null;
+    size?: string | null;
+    condition: string;
+    amountPaidCents: number;
+    quantity: number;
+  }>;
+  currency: string;
+  pdfBase64: string;
+};
+
+/** Send one combined receipt for a multi-item purchase to the seller (cc owner). */
+export async function sendBatchReceiptEmail(input: BatchReceiptEmailInput): Promise<void> {
+  const dateStr = input.date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const total = input.items.reduce((s, it) => s + it.amountPaidCents, 0);
+
+  const rows = input.items
+    .map((it) => {
+      let name = it.brand ? `${it.brand} — ${it.title}` : it.title;
+      if (it.size) name += ` (Size ${it.size})`;
+      return `<tr>
+        <td style="padding:8px 0;border-top:1px solid #eee">${escapeHtml(name)}<br><span style="color:#7a7a85;font-size:12px">${escapeHtml(
+        it.condition
+      )}${it.quantity > 1 ? ` · qty ${it.quantity}` : ""}</span></td>
+        <td style="padding:8px 0;border-top:1px solid #eee;text-align:right;font-weight:700;white-space:nowrap">${usd(
+          it.amountPaidCents,
+          input.currency
+        )}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#17171b">
+    <div style="border-bottom:3px solid #a855f7;padding-bottom:14px;margin-bottom:20px">
+      <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em">${escapeHtml(input.businessName)}</div>
+      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">PURCHASE RECEIPT</div>
+    </div>
+    <p style="font-size:15px">Hi ${escapeHtml(input.sellerName.split(" ")[0] || input.sellerName)},</p>
+    <p style="font-size:15px;line-height:1.5">
+      Thank you — this confirms that <strong>${escapeHtml(
+        input.businessName
+      )}</strong> purchased the following ${input.items.length} item(s) from you. A PDF copy is attached.
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0 0;font-size:14px">
+      <tr><td style="padding:6px 0;color:#7a7a85">Receipt #</td><td style="padding:6px 0;text-align:right;font-weight:700">${escapeHtml(
+        input.receiptNumber
+      )}</td></tr>
+      <tr><td style="padding:6px 0;color:#7a7a85">Date</td><td style="padding:6px 0;text-align:right">${dateStr}</td></tr>
+    </table>
+    <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:14px">
+      ${rows}
+      <tr><td style="padding:14px 0 0;border-top:2px solid #17171b;font-weight:800">Total paid</td>
+      <td style="padding:14px 0 0;border-top:2px solid #17171b;text-align:right;font-weight:800;font-size:18px;color:#a855f7">${usd(
+        total,
         input.currency
       )}</td></tr>
     </table>

@@ -14,6 +14,7 @@ export type ReceiptData = {
   sellerIdLast4?: string | null;
   title: string;
   brand?: string | null;
+  size?: string | null;
   condition: string;
   sku: string;
   quantity: number;
@@ -105,7 +106,8 @@ export async function renderReceiptPdf(data: ReceiptData): Promise<Uint8Array> {
   text("AMOUNT PAID", width - margin - 90, y, { size: 9, font: bold, color: GRAY });
   y -= 26;
 
-  const itemName = data.brand ? `${data.brand} — ${data.title}` : data.title;
+  let itemName = data.brand ? `${data.brand} — ${data.title}` : data.title;
+  if (data.size) itemName += ` (Size ${data.size})`;
   text(truncate(itemName, 40), margin + 8, y, { size: 10, font: bold });
   if (data.quantity > 1) text(`Qty: ${data.quantity}`, margin + 8, y - 13, { size: 8, color: GRAY });
   text(data.condition, margin + 250, y, { size: 10 });
@@ -158,6 +160,159 @@ export async function renderReceiptPdf(data: ReceiptData): Promise<Uint8Array> {
     margin - 12,
     { size: 8, color: GRAY }
   );
+
+  return doc.save();
+}
+
+export type BatchReceiptItem = {
+  title: string;
+  brand?: string | null;
+  size?: string | null;
+  condition: string;
+  sku: string;
+  quantity: number;
+  amountPaidCents: number;
+};
+
+export type BatchReceiptData = {
+  businessName: string;
+  businessAddress: string;
+  businessEmail: string;
+  receiptNumber: string;
+  date: Date;
+  sellerName: string;
+  sellerEmail: string;
+  sellerIdLast4?: string | null;
+  items: BatchReceiptItem[];
+  currency: string;
+};
+
+// A combined "buying receipt" for multiple items purchased from one seller in a
+// single visit. Shows the amount paid per item and the grand total.
+export async function renderBatchReceiptPdf(data: BatchReceiptData): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const pageW = 595.28;
+  const pageH = 841.89;
+  const margin = 48;
+
+  let page = doc.addPage([pageW, pageH]);
+  let y = pageH - margin;
+
+  const draw = (
+    s: string,
+    x: number,
+    yy: number,
+    opts: { size?: number; bold?: boolean; color?: typeof DARK } = {}
+  ) => {
+    page.drawText(sanitize(s), {
+      x,
+      y: yy,
+      size: opts.size ?? 10,
+      font: opts.bold ? bold : font,
+      color: opts.color ?? DARK,
+    });
+  };
+
+  const colItem = margin + 8;
+  const colCond = margin + 210;
+  const colSku = margin + 300;
+  const colQty = margin + 400;
+  const colAmt = pageW - margin - 90;
+
+  const header = () => {
+    page.drawRectangle({ x: margin, y: y - 6, width: 10, height: 10, color: VIOLET });
+    draw(data.businessName.toUpperCase(), margin + 18, y - 4, { size: 15, bold: true });
+    draw("PURCHASE RECEIPT", pageW - margin - 130, y - 4, { size: 12, bold: true, color: VIOLET });
+    y -= 26;
+    draw(data.businessAddress, margin + 18, y, { size: 9, color: GRAY });
+    draw(data.businessEmail, margin + 18, y - 12, { size: 9, color: GRAY });
+    y -= 34;
+    page.drawLine({ start: { x: margin, y }, end: { x: pageW - margin, y }, thickness: 1, color: LINE });
+    y -= 24;
+  };
+
+  const tableHead = () => {
+    page.drawRectangle({ x: margin, y: y - 6, width: pageW - margin * 2, height: 22, color: rgb(0.96, 0.94, 0.99) });
+    draw("ITEM", colItem, y, { size: 9, bold: true, color: GRAY });
+    draw("CONDITION", colCond, y, { size: 9, bold: true, color: GRAY });
+    draw("SKU", colSku, y, { size: 9, bold: true, color: GRAY });
+    draw("QTY", colQty, y, { size: 9, bold: true, color: GRAY });
+    draw("AMOUNT", colAmt, y, { size: 9, bold: true, color: GRAY });
+    y -= 24;
+  };
+
+  header();
+
+  // Meta + seller
+  const metaX = pageW - margin - 200;
+  draw("Receipt #", metaX, y, { size: 9, color: GRAY });
+  draw(data.receiptNumber, metaX + 70, y, { size: 9, bold: true });
+  draw("Date", metaX, y - 14, { size: 9, color: GRAY });
+  draw(
+    data.date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+    metaX + 70,
+    y - 14,
+    { size: 9, bold: true }
+  );
+  draw("SELLER", margin, y, { size: 9, bold: true, color: VIOLET });
+  draw(data.sellerName, margin, y - 15, { size: 11, bold: true });
+  draw(data.sellerEmail, margin, y - 29, { size: 9, color: GRAY });
+  if (data.sellerIdLast4) {
+    draw(`Gov. ID on file (ending ${data.sellerIdLast4})`, margin, y - 42, { size: 9, color: GRAY });
+  }
+  y -= 68;
+
+  tableHead();
+
+  let total = 0;
+  for (const it of data.items) {
+    if (y < margin + 120) {
+      page = doc.addPage([pageW, pageH]);
+      y = pageH - margin;
+      tableHead();
+    }
+    total += it.amountPaidCents;
+    let name = it.brand ? `${it.brand} — ${it.title}` : it.title;
+    if (it.size) name += ` (Size ${it.size})`;
+    draw(truncate(name, 34), colItem, y, { size: 10, bold: true });
+    draw(it.condition, colCond, y, { size: 9 });
+    draw(it.sku, colSku, y, { size: 9, bold: true });
+    draw(String(it.quantity), colQty, y, { size: 9 });
+    draw(usd(it.amountPaidCents, data.currency), colAmt, y, { size: 10, bold: true });
+    y -= 20;
+  }
+
+  y -= 6;
+  page.drawLine({ start: { x: margin, y }, end: { x: pageW - margin, y }, thickness: 1, color: LINE });
+  y -= 22;
+  draw(`${data.items.length} item(s) · TOTAL PAID TO SELLER`, pageW - margin - 280, y, {
+    size: 10,
+    bold: true,
+    color: GRAY,
+  });
+  draw(usd(total, data.currency), colAmt, y, { size: 13, bold: true, color: VIOLET });
+  y -= 44;
+
+  const ack = [
+    `This receipt confirms that ${data.businessName} purchased the item(s) listed above from`,
+    `${data.sellerName} for the total amount shown, on ${data.date.toLocaleDateString("en-US")}.`,
+    `The seller confirms they are the lawful owner with the right to sell, and that the sale is`,
+    `final. Both parties retain a copy of this receipt as confirmation of the transaction.`,
+  ];
+  ack.forEach((ln, i) => draw(ln, margin, y - i * 14, { size: 9, color: GRAY }));
+  y -= ack.length * 14 + 40;
+
+  page.drawLine({ start: { x: margin, y }, end: { x: margin + 200, y }, thickness: 1, color: LINE });
+  page.drawLine({ start: { x: pageW - margin - 200, y }, end: { x: pageW - margin, y }, thickness: 1, color: LINE });
+  draw("Seller signature", margin, y - 14, { size: 8, color: GRAY });
+  draw(data.businessName, pageW - margin - 200, y - 14, { size: 8, color: GRAY });
+
+  draw(`Generated ${new Date().toLocaleString("en-US")} · ${data.receiptNumber}`, margin, margin - 12, {
+    size: 8,
+    color: GRAY,
+  });
 
   return doc.save();
 }

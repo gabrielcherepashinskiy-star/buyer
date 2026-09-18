@@ -54,10 +54,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function Purchases() {
   const { user, q, purchases } = useLoaderData<typeof loader>();
   const [params] = useSearchParams();
+  const created = parseInt(params.get("created") || "", 10);
 
   return (
     <Shell user={user}>
       <div className="container">
+        {created > 0 ? (
+          <div className="alert ok">
+            Recorded {created} purchase{created === 1 ? "" : "s"}. Each item was pushed to Shopify as a
+            draft and added to your sheet, and the seller's receipt was emailed. Check any row's status
+            below.
+          </div>
+        ) : null}
         <div className="page-head">
           <div>
             <h1>Purchases</h1>
