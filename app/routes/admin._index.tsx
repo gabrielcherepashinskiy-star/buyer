@@ -17,7 +17,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [agg, monthAgg, recent, count, newSubs] = await Promise.all([
+  const [agg, monthAgg, recent, count] = await Promise.all([
     prisma.purchase.aggregate({ _sum: { costCents: true, priceCents: true } }),
     prisma.purchase.aggregate({
       _sum: { costCents: true },
@@ -26,8 +26,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }),
     prisma.purchase.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
     prisma.purchase.count(),
-    prisma.submission.count({ where: { status: "new" } }),
   ]);
+
+  // Guarded: if the submissions table isn't migrated yet, don't crash the page.
+  let newSubs = 0;
+  try {
+    newSubs = await prisma.submission.count({ where: { status: "new" } });
+  } catch {
+    newSubs = 0;
+  }
 
   const totalCost = agg._sum.costCents || 0;
   const totalValue = agg._sum.priceCents || 0;
