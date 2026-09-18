@@ -431,6 +431,134 @@ tbody tr:hover {
   color: #fde68a;
 }
 
+/* ---------- Public seller wizard ---------- */
+.sell-wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.16), transparent 60%), var(--bg);
+}
+
+.sell-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
+.sell-card h2 {
+  margin-top: 6px;
+}
+
+.steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0 20px;
+}
+
+.step-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+
+.step-dot.active {
+  color: #14061f;
+  background: var(--violet);
+  border-color: var(--violet);
+}
+
+.step-dot.done {
+  color: var(--violet-2);
+  border-color: var(--violet);
+}
+
+.sell-item {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.method-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-2);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.method-card:hover {
+  border-color: var(--violet);
+}
+
+.method-card.sel {
+  border-color: var(--violet);
+  background: var(--violet-dim);
+}
+
+.method-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.method-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.disclaimer {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.wizard-nav .btn {
+  min-width: 120px;
+}
+
+.sell-foot {
+  margin-top: 18px;
+  font-size: 12px;
+}
+
 /* ---------- Login ---------- */
 .login-wrap {
   min-height: 100vh;

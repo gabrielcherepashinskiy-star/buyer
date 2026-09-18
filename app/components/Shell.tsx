@@ -8,26 +8,29 @@ export function Shell({
   children: React.ReactNode;
 }) {
   const loc = useLocation();
-  const is = (p: string) =>
-    loc.pathname === p || (p !== "/" && loc.pathname.startsWith(p)) ? "active" : "";
+  const exact = (p: string) => (loc.pathname === p ? "active" : "");
+  const prefix = (p: string) => (loc.pathname === p || loc.pathname.startsWith(p + "/") ? "active" : "");
   return (
     <div className="shell">
       <header className="topbar">
-        <Link to="/" className="brand">
+        <Link to="/admin" className="brand">
           <span className="dot" />
           <span>
             Buying Desk <small>· SHOP SELECT NYC</small>
           </span>
         </Link>
         <nav className="nav">
-          <Link className={is("/")} to="/">
+          <Link className={exact("/admin")} to="/admin">
             Dashboard
           </Link>
-          <Link className={is("/buy")} to="/buy">
+          <Link className={prefix("/admin/buy")} to="/admin/buy">
             New Purchase
           </Link>
-          <Link className={is("/purchases")} to="/purchases">
+          <Link className={prefix("/admin/purchases")} to="/admin/purchases">
             Purchases
+          </Link>
+          <Link className={prefix("/admin/submissions")} to="/admin/submissions">
+            Submissions
           </Link>
         </nav>
         <div className="spacer" />

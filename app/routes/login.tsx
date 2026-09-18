@@ -7,7 +7,7 @@ export const meta: MetaFunction = () => [{ title: "Sign in · Buying Desk" }];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getUser(request);
-  if (user) throw redirect("/");
+  if (user) throw redirect("/admin");
   return json({});
 }
 
@@ -15,12 +15,12 @@ export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
   const username = String(form.get("username") || "");
   const password = String(form.get("password") || "");
-  const redirectTo = String(form.get("redirectTo") || "/");
+  const redirectTo = String(form.get("redirectTo") || "/admin");
   const name = verifyCredentials(username, password);
   if (!name) {
     return json({ error: "Incorrect username or password." }, { status: 401 });
   }
-  const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/";
+  const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/admin";
   return createUserSession(name, safeRedirect);
 }
 
@@ -41,7 +41,7 @@ export default function Login() {
         </p>
         {actionData?.error ? <div className="alert err">{actionData.error}</div> : null}
         <Form method="post">
-          <input type="hidden" name="redirectTo" value={params.get("redirectTo") || "/"} />
+          <input type="hidden" name="redirectTo" value={params.get("redirectTo") || "/admin"} />
           <div className="field" style={{ marginTop: 10 }}>
             <label htmlFor="username">Username</label>
             <input

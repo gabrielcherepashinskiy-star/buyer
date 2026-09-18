@@ -2,7 +2,7 @@
   "name": "Buying Desk · SHOP SELECT NYC",
   "short_name": "Buying Desk",
   "description": "Record purchases, price them, push drafts to Shopify, and email receipts.",
-  "start_url": "/",
+  "start_url": "/admin",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
@@ -15,7 +15,8 @@
     { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "New Purchase", "url": "/buy" },
-    { "name": "Purchases", "url": "/purchases" }
+    { "name": "New Purchase", "url": "/admin/buy" },
+    { "name": "Purchases", "url": "/admin/purchases" },
+    { "name": "Submissions", "url": "/admin/submissions" }
   ]
 }

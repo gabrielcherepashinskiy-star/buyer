@@ -219,6 +219,80 @@ export async function sendBatchReceiptEmail(input: BatchReceiptEmailInput): Prom
   });
 }
 
+export type SellerSubmissionEmailInput = {
+  ownerEmail: string;
+  businessName: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  method: "instore" | "ship";
+  note?: string | null;
+  items: Array<{ name: string; desiredPriceCents: number; quantity: number; notes?: string | null }>;
+};
+
+/** Notify the owner that a seller submitted items for a quote. */
+export async function sendSellerSubmissionEmail(input: SellerSubmissionEmailInput): Promise<void> {
+  if (!input.ownerEmail) throw new Error("No owner email configured");
+  const methodLabel = input.method === "ship" ? "Ship to us (Payment Upon Arrival)" : "In-store drop-off";
+  const total = input.items.reduce((s, it) => s + it.desiredPriceCents * (it.quantity || 1), 0);
+
+  const rows = input.items
+    .map(
+      (it) => `<tr>
+        <td style="padding:7px 0;border-top:1px solid #eee">${escapeHtml(it.name)}${
+        it.quantity > 1 ? ` <span style="color:#7a7a85">×${it.quantity}</span>` : ""
+      }${it.notes ? `<br><span style="color:#7a7a85;font-size:12px">${escapeHtml(it.notes)}</span>` : ""}</td>
+        <td style="padding:7px 0;border-top:1px solid #eee;text-align:right;white-space:nowrap">${usd(
+          it.desiredPriceCents,
+          "USD"
+        )}</td>
+      </tr>`
+    )
+    .join("");
+
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;color:#17171b">
+    <div style="border-bottom:3px solid #a855f7;padding-bottom:12px;margin-bottom:18px">
+      <div style="font-size:16px;font-weight:800">${escapeHtml(input.businessName)}</div>
+      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">NEW SELL REQUEST</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:14px">
+      <tr><td style="padding:4px 0;color:#7a7a85;width:120px">Seller</td><td style="padding:4px 0;font-weight:700">${escapeHtml(
+        input.contactName
+      )}</td></tr>
+      <tr><td style="padding:4px 0;color:#7a7a85">Phone</td><td style="padding:4px 0">${escapeHtml(
+        input.contactPhone
+      )}</td></tr>
+      <tr><td style="padding:4px 0;color:#7a7a85">Email</td><td style="padding:4px 0">${escapeHtml(
+        input.contactEmail
+      )}</td></tr>
+      <tr><td style="padding:4px 0;color:#7a7a85">Method</td><td style="padding:4px 0;font-weight:700">${escapeHtml(
+        methodLabel
+      )}</td></tr>
+    </table>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr><th style="text-align:left;padding-bottom:6px;color:#7a7a85;font-size:12px">ITEM</th><th style="text-align:right;padding-bottom:6px;color:#7a7a85;font-size:12px">ASKING</th></tr>
+      ${rows}
+      <tr><td style="padding-top:12px;border-top:2px solid #17171b;font-weight:800">Total asking</td>
+      <td style="padding-top:12px;border-top:2px solid #17171b;text-align:right;font-weight:800;color:#a855f7">${usd(
+        total,
+        "USD"
+      )}</td></tr>
+    </table>
+    ${input.note ? `<p style="font-size:13px;color:#7a7a85;margin-top:14px">Note: ${escapeHtml(input.note)}</p>` : ""}
+    <p style="font-size:13px;color:#7a7a85;margin-top:18px">Review and send a quote from your admin → Submissions.</p>
+  </div>`;
+
+  await sendEmail({
+    to: [input.ownerEmail],
+    subject: `New sell request — ${input.contactName} (${input.items.length} item${
+      input.items.length === 1 ? "" : "s"
+    })`,
+    html,
+    replyTo: input.contactEmail,
+  });
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
