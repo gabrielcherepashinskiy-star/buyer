@@ -1,5 +1,5 @@
 import { prisma } from "~/db.server";
-import { encrypt, last4 } from "~/lib/crypto.server";
+import { safeEncrypt, last4 } from "~/lib/crypto.server";
 import { generateBatchNumber, generateReceiptNumber, generateSku } from "~/lib/sku.server";
 import { pushDraftProduct, shopifyConfigured } from "~/lib/shopify.server";
 import { appendPurchaseRow, sheetsConfigured } from "~/lib/sheets.server";
@@ -50,7 +50,7 @@ export async function createPurchase(
   const receiptNumber = await generateReceiptNumber();
 
   const sellerIdTrimmed = input.sellerId.trim();
-  const sellerIdEnc = sellerIdTrimmed ? encrypt(sellerIdTrimmed) : null;
+  const sellerIdEnc = sellerIdTrimmed ? safeEncrypt(sellerIdTrimmed).enc : null;
   const sellerIdLast4 = sellerIdTrimmed ? last4(sellerIdTrimmed) : null;
 
   let purchase = await prisma.purchase.create({
@@ -130,7 +130,7 @@ export async function createBulkPurchase(input: BulkPurchaseInput): Promise<{
   };
 }> {
   const sellerIdTrimmed = input.sellerId.trim();
-  const sellerIdEnc = sellerIdTrimmed ? encrypt(sellerIdTrimmed) : null;
+  const sellerIdEnc = sellerIdTrimmed ? safeEncrypt(sellerIdTrimmed).enc : null;
   const sellerIdLast4 = sellerIdTrimmed ? last4(sellerIdTrimmed) : null;
 
   const created: Purchase[] = [];

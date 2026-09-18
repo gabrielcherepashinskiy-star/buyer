@@ -56,3 +56,17 @@ export function last4(value: string): string {
   const trimmed = value.replace(/\s+/g, "");
   return trimmed.slice(-4);
 }
+
+/**
+ * Encrypt but never throw. Returns null if ENCRYPTION_KEY is missing/invalid,
+ * so a misconfigured key can't crash a purchase. The last-4 is still stored
+ * separately, and the admin can set ENCRYPTION_KEY to enable full storage.
+ */
+export function safeEncrypt(plain: string): { enc: string | null; ok: boolean } {
+  try {
+    return { enc: encrypt(plain), ok: true };
+  } catch (e) {
+    console.error("Seller ID encryption failed — set a valid ENCRYPTION_KEY:", e);
+    return { enc: null, ok: false };
+  }
+}

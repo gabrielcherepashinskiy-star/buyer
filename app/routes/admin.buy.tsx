@@ -87,16 +87,29 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ errors, values: { sellerName, sellerEmail } }, { status: 400 });
   }
 
-  const { purchases } = await createBulkPurchase({
-    sellerName,
-    sellerEmail,
-    sellerId,
-    currency: "USD",
-    recordedBy: user.name,
-    rows,
-  });
-
-  return redirect(`/admin/purchases?created=${purchases.length}`);
+  try {
+    const { purchases } = await createBulkPurchase({
+      sellerName,
+      sellerEmail,
+      sellerId,
+      currency: "USD",
+      recordedBy: user.name,
+      rows,
+    });
+    return redirect(`/admin/purchases?created=${purchases.length}`);
+  } catch (e) {
+    console.error("Purchase failed:", e);
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    return json(
+      {
+        errors: [
+          `Couldn't save the purchase: ${msg}. If this mentions the database or a column, redeploy so the schema is up to date.`,
+        ],
+        values: { sellerName, sellerEmail },
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export default function Buy() {

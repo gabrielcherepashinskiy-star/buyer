@@ -10,7 +10,12 @@ export const meta: MetaFunction = () => [{ title: "Submissions · Buying Desk" }
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUser(request);
-  const submissions = await listSubmissions();
+  let submissions: Awaited<ReturnType<typeof listSubmissions>> = [];
+  try {
+    submissions = await listSubmissions();
+  } catch (e) {
+    console.error("Could not load submissions (redeploy to migrate?):", e);
+  }
   return json({
     user,
     submissions: submissions.map((s) => ({
