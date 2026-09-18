@@ -228,7 +228,20 @@ export type SellerSubmissionEmailInput = {
   method: "instore" | "ship";
   note?: string | null;
   items: Array<{ name: string; desiredPriceCents: number; quantity: number; notes?: string | null }>;
+  photos?: string[]; // JPEG data URLs
 };
+
+// Turn ["data:image/jpeg;base64,XXXX", …] into Resend attachments.
+function photoAttachments(photos?: string[]): Attachment[] {
+  if (!photos || photos.length === 0) return [];
+  const out: Attachment[] = [];
+  photos.slice(0, 8).forEach((p, i) => {
+    const comma = p.indexOf(",");
+    const content = comma >= 0 ? p.slice(comma + 1) : p;
+    if (content) out.push({ filename: `photo-${i + 1}.jpg`, content });
+  });
+  return out;
+}
 
 /** Notify the owner that a seller submitted items for a quote. */
 export async function sendSellerSubmissionEmail(input: SellerSubmissionEmailInput): Promise<void> {
@@ -290,6 +303,72 @@ export async function sendSellerSubmissionEmail(input: SellerSubmissionEmailInpu
     })`,
     html,
     replyTo: input.contactEmail,
+    attachments: photoAttachments(input.photos),
+  });
+}
+
+export type SellerConfirmationEmailInput = {
+  businessName: string;
+  businessEmail: string;
+  contactName: string;
+  contactEmail: string;
+  method: "instore" | "ship";
+  items: Array<{ name: string; desiredPriceCents: number; quantity: number; notes?: string | null }>;
+};
+
+/** Confirmation receipt to the SELLER of everything they submitted, with pricing. */
+export async function sendSellerConfirmationEmail(input: SellerConfirmationEmailInput): Promise<void> {
+  const methodLabel = input.method === "ship" ? "Ship to us (Payment Upon Arrival)" : "In-store drop-off";
+  const total = input.items.reduce((s, it) => s + it.desiredPriceCents * (it.quantity || 1), 0);
+
+  const rows = input.items
+    .map(
+      (it) => `<tr>
+        <td style="padding:8px 0;border-top:1px solid #eee">${escapeHtml(it.name)}${
+        it.quantity > 1 ? ` <span style="color:#7a7a85">×${it.quantity}</span>` : ""
+      }${it.notes ? `<br><span style="color:#7a7a85;font-size:12px">${escapeHtml(it.notes)}</span>` : ""}</td>
+        <td style="padding:8px 0;border-top:1px solid #eee;text-align:right;white-space:nowrap;font-weight:700">${usd(
+          it.desiredPriceCents,
+          "USD"
+        )}</td>
+      </tr>`
+    )
+    .join("");
+
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#17171b">
+    <div style="border-bottom:3px solid #a855f7;padding-bottom:12px;margin-bottom:18px">
+      <div style="font-size:16px;font-weight:800">${escapeHtml(input.businessName)}</div>
+      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">SUBMISSION RECEIVED</div>
+    </div>
+    <p style="font-size:15px">Hi ${escapeHtml(input.contactName.split(" ")[0] || input.contactName)},</p>
+    <p style="font-size:15px;line-height:1.5">
+      Thanks for submitting your items to <strong>${escapeHtml(
+        input.businessName
+      )}</strong>. Here's a copy of what you sent. A sales associate will review it and follow up with a quote.
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:10px 0">
+      <tr><th style="text-align:left;padding-bottom:6px;color:#7a7a85;font-size:12px">ITEM</th><th style="text-align:right;padding-bottom:6px;color:#7a7a85;font-size:12px">YOUR ASKING PRICE</th></tr>
+      ${rows}
+      <tr><td style="padding-top:12px;border-top:2px solid #17171b;font-weight:800">Total</td>
+      <td style="padding-top:12px;border-top:2px solid #17171b;text-align:right;font-weight:800;color:#a855f7">${usd(
+        total,
+        "USD"
+      )}</td></tr>
+    </table>
+    <p style="font-size:14px;margin:6px 0"><strong>How you're selling:</strong> ${escapeHtml(methodLabel)}</p>
+    <div style="margin-top:16px;padding:12px 14px;border:1px dashed #ddd;border-radius:8px;font-size:12px;color:#7a7a85;line-height:1.5">
+      Submitting your items does not guarantee that a deal has been agreed to, and your desired prices
+      are not guaranteed. A sales associate will review your submission and get back to you with a quote.
+    </div>
+    <p style="font-size:13px;color:#7a7a85;margin-top:18px">— ${escapeHtml(input.businessName)}</p>
+  </div>`;
+
+  await sendEmail({
+    to: [input.contactEmail],
+    subject: `We received your items — ${input.businessName}`,
+    html,
+    replyTo: input.businessEmail || undefined,
   });
 }
 

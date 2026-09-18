@@ -29,6 +29,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         quantity: it.quantity,
         notes: it.notes,
       })),
+      photos: s.photos.map((p) => ({ id: p.id, dataUrl: p.dataUrl })),
     })),
   });
 }
@@ -125,6 +126,16 @@ export default function Submissions() {
                     </tbody>
                   </table>
                 </div>
+
+                {s.photos.length > 0 ? (
+                  <div className="photos" style={{ marginTop: 12 }}>
+                    {s.photos.map((ph) => (
+                      <a key={ph.id} href={ph.dataUrl} target="_blank" rel="noreferrer">
+                        <img src={ph.dataUrl} alt="Submitted item" />
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
 
                 {s.note ? (
                   <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>

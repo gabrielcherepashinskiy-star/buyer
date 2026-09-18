@@ -46,19 +46,35 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (errors.length > 0) return json({ errors }, { status: 400 });
 
-  await createSubmission({
-    contactName,
-    contactPhone,
-    contactEmail,
-    method: method as "instore" | "ship",
-    note,
-    items: filled.map((i) => ({
-      name: i.name.trim(),
-      desiredPriceCents: toCents(i.price),
-      quantity: 1,
-      notes: (i.notes || "").trim() || undefined,
-    })),
-  });
+  let photos: string[] = [];
+  try {
+    photos = JSON.parse(String(form.get("photosJson") || "[]"));
+  } catch {
+    photos = [];
+  }
+
+  try {
+    await createSubmission({
+      contactName,
+      contactPhone,
+      contactEmail,
+      method: method as "instore" | "ship",
+      note,
+      items: filled.map((i) => ({
+        name: i.name.trim(),
+        desiredPriceCents: toCents(i.price),
+        quantity: 1,
+        notes: (i.notes || "").trim() || undefined,
+      })),
+      photos: Array.isArray(photos) ? photos : [],
+    });
+  } catch (e) {
+    console.error("Submission failed:", e);
+    return json(
+      { errors: ["Sorry — something went wrong submitting your items. Please try again in a moment."] },
+      { status: 500 }
+    );
+  }
 
   return redirect("/?submitted=1");
 }
@@ -94,6 +110,37 @@ function ThankYou({ businessName }: { businessName: string }) {
 
 const emptyItem = (): ItemInput => ({ name: "", price: "", notes: "" });
 
+// Shrink a phone photo in the browser to a small JPEG data URL before upload.
+function compressImage(file: File, maxDim = 1200, quality = 0.65): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > height && width > maxDim) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else if (height >= width && height > maxDim) {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("no canvas"));
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("bad image"));
+    };
+    img.src = url;
+  });
+}
+
 function Wizard({ businessName }: { businessName: string }) {
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
@@ -104,7 +151,28 @@ function Wizard({ businessName }: { businessName: string }) {
   const [items, setItems] = useState<ItemInput[]>(() => [emptyItem(), emptyItem(), emptyItem()]);
   const [method, setMethod] = useState<"" | "instore" | "ship">("");
   const [note, setNote] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [stepError, setStepError] = useState("");
+
+  const MAX_PHOTOS = 6;
+  const onPhotos = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    setPhotoBusy(true);
+    const room = MAX_PHOTOS - photos.length;
+    const files = Array.from(fileList).slice(0, Math.max(0, room));
+    const compressed: string[] = [];
+    for (const file of files) {
+      try {
+        compressed.push(await compressImage(file));
+      } catch {
+        /* skip unreadable file */
+      }
+    }
+    setPhotos((prev) => [...prev, ...compressed].slice(0, MAX_PHOTOS));
+    setPhotoBusy(false);
+  };
+  const removePhoto = (i: number) => setPhotos((prev) => prev.filter((_, idx) => idx !== i));
 
   const updateItem = (i: number, key: keyof ItemInput, val: string) =>
     setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, [key]: val } : it)));
@@ -169,6 +237,7 @@ function Wizard({ businessName }: { businessName: string }) {
 
         <Form method="post">
           <input type="hidden" name="itemsJson" value={JSON.stringify(items)} readOnly />
+          <input type="hidden" name="photosJson" value={JSON.stringify(photos)} readOnly />
           <input type="hidden" name="method" value={method} readOnly />
           <input type="hidden" name="note" value={note} readOnly />
           <input type="hidden" name="contactName" value={contact.name} readOnly />
@@ -222,6 +291,59 @@ function Wizard({ businessName }: { businessName: string }) {
               <button type="button" className="btn ghost sm" onClick={addItem} style={{ marginTop: 4 }}>
                 + Add another item
               </button>
+
+              <div className="section-label" style={{ marginTop: 22 }}>Photos (optional)</div>
+              <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+                Add clear photos of your items — it helps us quote faster and more accurately.
+              </p>
+              {photos.length > 0 ? (
+                <div className="photos">
+                  {photos.map((src, i) => (
+                    <div key={i} style={{ position: "relative" }}>
+                      <img src={src} alt={`Item photo ${i + 1}`} />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(i)}
+                        title="Remove photo"
+                        style={{
+                          position: "absolute",
+                          top: -6,
+                          right: -6,
+                          width: 22,
+                          height: 22,
+                          borderRadius: "50%",
+                          border: "none",
+                          background: "var(--red)",
+                          color: "#fff",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          lineHeight: "22px",
+                          padding: 0,
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {photos.length < MAX_PHOTOS ? (
+                <label className="btn ghost sm" style={{ marginTop: 10, cursor: "pointer", display: "inline-flex" }}>
+                  {photoBusy ? "Adding…" : photos.length ? "+ Add more photos" : "+ Add photos"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      onPhotos(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              ) : (
+                <p className="hint">Maximum {MAX_PHOTOS} photos.</p>
+              )}
             </div>
           ) : null}
 
