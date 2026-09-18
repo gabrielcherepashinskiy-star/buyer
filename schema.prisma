@@ -26,6 +26,7 @@ model Purchase {
   title       String
   brand       String?
   category    String?
+  size        String? // e.g. shoe/clothing size, when applicable
   condition   String // New, Like New, Excellent, Very Good, Good, Fair
   description String?
   quantity    Int     @default(1)
@@ -62,4 +63,55 @@ model Purchase {
 
   @@index([createdAt])
   @@index([sellerEmail])
+}
+
+// A public "sell to us" submission from the seller intake page. This is a
+// lead/quote request — not a purchase. Admin reviews it and follows up.
+model Submission {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  status String @default("new") // new | reviewed | quoted | closed
+
+  // Contact (window 1)
+  contactName  String
+  contactPhone String
+  contactEmail String
+
+  // How they'll get items to us (window 3): instore | ship
+  method String
+
+  note String?
+
+  items  SubmissionItem[]
+  photos SubmissionPhoto[]
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+model SubmissionPhoto {
+  id           String     @id @default(cuid())
+  createdAt    DateTime   @default(now())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  // Stored as a compressed JPEG data URL (base64). Client shrinks it first.
+  dataUrl String @db.Text
+
+  @@index([submissionId])
+}
+
+model SubmissionItem {
+  id           String     @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  name              String
+  desiredPriceCents Int    @default(0)
+  quantity          Int    @default(1)
+  notes             String?
+
+  @@index([submissionId])
 }
