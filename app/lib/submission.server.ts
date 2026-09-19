@@ -1,6 +1,7 @@
 import { prisma } from "~/db.server";
 import {
   emailConfigured,
+  sendQuoteEmail,
   sendSellerConfirmationEmail,
   sendSellerSubmissionEmail,
 } from "~/lib/email.server";
@@ -114,4 +115,30 @@ export async function setSubmissionStatus(id: string, status: string) {
 
 export async function newSubmissionCount() {
   return prisma.submission.count({ where: { status: "new" } });
+}
+
+/** Email a counteroffer/quote to the seller and mark the submission "quoted". */
+export async function sendQuote(
+  id: string,
+  quoteCents: number,
+  message?: string
+): Promise<{ ok: boolean; message: string }> {
+  const sub = await prisma.submission.findUnique({ where: { id } });
+  if (!sub) return { ok: false, message: "Submission not found." };
+  if (!emailConfigured()) return { ok: false, message: "Email isn't configured (set RESEND_API_KEY / RESEND_FROM)." };
+  if (!quoteCents || quoteCents <= 0) return { ok: false, message: "Enter a quote amount." };
+  try {
+    await sendQuoteEmail({
+      businessName: process.env.BUSINESS_NAME || "SHOP SELECT NYC",
+      businessEmail: process.env.BUSINESS_EMAIL || process.env.OWNER_EMAIL || "",
+      contactName: sub.contactName,
+      contactEmail: sub.contactEmail,
+      quoteCents,
+      message,
+    });
+    await prisma.submission.update({ where: { id }, data: { status: "quoted" } });
+    return { ok: true, message: `Quote of $${(quoteCents / 100).toFixed(2)} emailed to ${sub.contactEmail}.` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Could not send the quote." };
+  }
 }

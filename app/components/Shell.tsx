@@ -14,7 +14,7 @@ export function Shell({
     <div className="shell">
       <header className="topbar">
         <Link to="/admin" className="brand">
-          <span className="dot" />
+          <img src="/logo-mark.png" alt="SHOP SELECT NYC" style={{ height: 30, width: "auto", display: "block" }} />
           <span>
             Buying Desk <small>· SHOP SELECT NYC</small>
           </span>

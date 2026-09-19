@@ -410,6 +410,11 @@ async function runReceipt(p: Purchase): Promise<{ ok: boolean; message: string }
   }
 }
 
+/** Permanently delete a purchase record. (The Shopify draft, if any, stays on Shopify.) */
+export async function deletePurchase(id: string): Promise<void> {
+  await prisma.purchase.delete({ where: { id } });
+}
+
 /** Re-run the Shopify push for an existing purchase. */
 export async function repushShopify(id: string): Promise<{ ok: boolean; message: string }> {
   const p = await prisma.purchase.findUniqueOrThrow({ where: { id } });

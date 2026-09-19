@@ -90,10 +90,11 @@ function ThankYou({ businessName }: { businessName: string }) {
   return (
     <div className="sell-wrap">
       <div className="sell-card" style={{ textAlign: "center" }}>
-        <div className="brand" style={{ justifyContent: "center", marginBottom: 18 }}>
-          <span className="dot" />
-          <span style={{ fontSize: 18 }}>{businessName}</span>
-        </div>
+        <img
+          src="/logo.png"
+          alt={businessName}
+          style={{ width: 160, maxWidth: "72%", height: "auto", margin: "0 auto 16px", display: "block" }}
+        />
         <div style={{ fontSize: 44, marginBottom: 8 }}>✓</div>
         <h1 style={{ fontSize: 24 }}>Submitted — thank you!</h1>
         <p className="muted" style={{ fontSize: 15, lineHeight: 1.5 }}>
@@ -208,10 +209,11 @@ function Wizard({ businessName }: { businessName: string }) {
   return (
     <div className="sell-wrap">
       <div className="sell-card">
-        <div className="brand" style={{ justifyContent: "center", marginBottom: 6 }}>
-          <span className="dot" />
-          <span style={{ fontSize: 18 }}>{businessName}</span>
-        </div>
+        <img
+          src="/logo.png"
+          alt={businessName}
+          style={{ width: 170, maxWidth: "72%", height: "auto", margin: "0 auto 10px", display: "block" }}
+        />
         <p className="muted" style={{ textAlign: "center", marginTop: 0, fontSize: 14 }}>
           Sell your items to us — get a quote
         </p>

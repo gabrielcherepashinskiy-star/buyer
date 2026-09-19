@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Form, Link, useLoaderData, useSearchParams } from "@remix-run/react";
+import { Form, Link, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
 import { prisma } from "~/db.server";
 import { requireUser } from "~/lib/session.server";
 import { Shell } from "~/components/Shell";
@@ -54,7 +54,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function Purchases() {
   const { user, q, purchases } = useLoaderData<typeof loader>();
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const created = parseInt(params.get("created") || "", 10);
+  const deleted = params.get("deleted") === "1";
 
   return (
     <Shell user={user}>
@@ -66,6 +68,7 @@ export default function Purchases() {
             below.
           </div>
         ) : null}
+        {deleted ? <div className="alert ok">Purchase deleted.</div> : null}
         <div className="page-head">
           <div>
             <h1>Purchases</h1>
@@ -130,20 +133,18 @@ export default function Purchases() {
                 {purchases.map((p) => {
                   const profit = p.priceCents - p.costCents;
                   return (
-                    <tr key={p.id} className="row-link">
+                    <tr
+                      key={p.id}
+                      className="row-link"
+                      onClick={() => navigate(`/admin/purchases/${p.id}`)}
+                      style={{ cursor: "pointer" }}
+                    >
                       <td>
-                        <Link to={`/admin/purchases/${p.id}`}>
-                          {new Date(p.createdAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </Link>
+                        {new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </td>
-                      <td>
-                        <Link to={`/admin/purchases/${p.id}`}>
-                          {p.brand ? `${p.brand} — ` : ""}
-                          {p.title}
-                        </Link>
+                      <td style={{ fontWeight: 600 }}>
+                        {p.brand ? `${p.brand} — ` : ""}
+                        {p.title}
                       </td>
                       <td className="mono muted">{p.sku}</td>
                       <td>{p.condition}</td>

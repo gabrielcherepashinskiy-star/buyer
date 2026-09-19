@@ -1,10 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Form, useLoaderData, useNavigation } from "@remix-run/react";
+import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { requireUser } from "~/lib/session.server";
 import { Shell } from "~/components/Shell";
-import { formatUSD } from "~/lib/money";
-import { listSubmissions, setSubmissionStatus } from "~/lib/submission.server";
+import { formatUSD, toCents } from "~/lib/money";
+import { listSubmissions, sendQuote, setSubmissionStatus } from "~/lib/submission.server";
 
 export const meta: MetaFunction = () => [{ title: "Submissions · Buying Desk" }];
 
@@ -42,10 +42,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   await requireUser(request);
   const form = await request.formData();
+  const intent = String(form.get("intent") || "");
   const id = String(form.get("id") || "");
+
+  if (intent === "quote") {
+    const quoteCents = toCents(String(form.get("quoteAmount") || ""));
+    const message = String(form.get("quoteMessage") || "").trim();
+    const result = await sendQuote(id, quoteCents, message || undefined);
+    return json({ result });
+  }
+
   const status = String(form.get("status") || "");
   if (id && status) await setSubmissionStatus(id, status);
-  return json({ ok: true });
+  return json({ result: { ok: true, message: "" } });
 }
 
 const STATUSES = ["new", "reviewed", "quoted", "accepted", "closed"];
@@ -59,6 +68,7 @@ const STATUS_CLASS: Record<string, string> = {
 
 export default function Submissions() {
   const { user, submissions } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const nav = useNavigation();
 
   return (
@@ -72,6 +82,10 @@ export default function Submissions() {
             </p>
           </div>
         </div>
+
+        {actionData?.result?.message ? (
+          <div className={`alert ${actionData.result.ok ? "ok" : "err"}`}>{actionData.result.message}</div>
+        ) : null}
 
         {submissions.length === 0 ? (
           <div className="card">
@@ -149,6 +163,39 @@ export default function Submissions() {
                   </p>
                 ) : null}
 
+                {/* Send a quote / counteroffer by email */}
+                <div
+                  style={{
+                    marginTop: 16,
+                    padding: 14,
+                    background: "var(--bg-2)",
+                    border: "1px solid var(--line)",
+                    borderRadius: 12,
+                  }}
+                >
+                  <div className="section-label" style={{ marginTop: 0 }}>Send a quote / counteroffer</div>
+                  <Form method="post">
+                    <input type="hidden" name="intent" value="quote" />
+                    <input type="hidden" name="id" value={s.id} />
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                      <div className="field" style={{ width: 160 }}>
+                        <label>Your offer ($)</label>
+                        <input name="quoteAmount" inputMode="decimal" placeholder="0.00" required />
+                      </div>
+                      <div className="field" style={{ flex: 1, minWidth: 220 }}>
+                        <label>Message (optional)</label>
+                        <input name="quoteMessage" placeholder="Add a note to the seller…" />
+                      </div>
+                      <button type="submit" className="btn" disabled={nav.state !== "idle"}>
+                        {nav.state !== "idle" ? "Sending…" : "Send quote"}
+                      </button>
+                    </div>
+                    <p className="hint" style={{ marginTop: 8 }}>
+                      Emails the seller your offer and marks this submission “quoted.”
+                    </p>
+                  </Form>
+                </div>
+
                 <div className="actions" style={{ marginTop: 14, marginBottom: 12 }}>
                   <a className="btn" href={`/admin/buy?from=${s.id}`}>
                     Accept → add to purchases
@@ -171,9 +218,6 @@ export default function Submissions() {
                       </button>
                     </Form>
                   ))}
-                  <a className="btn ghost sm" href={`mailto:${s.contactEmail}?subject=Your%20SHOP%20SELECT%20NYC%20quote`}>
-                    Email quote
-                  </a>
                 </div>
               </div>
             );

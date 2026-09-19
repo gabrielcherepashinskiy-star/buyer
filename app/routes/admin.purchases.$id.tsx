@@ -1,11 +1,12 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
+import { useState } from "react";
 import { prisma } from "~/db.server";
 import { requireUser } from "~/lib/session.server";
 import { Shell } from "~/components/Shell";
 import { formatUSD, marginPct, markupPct } from "~/lib/money";
-import { repushShopify, resendReceipt, resyncSheet } from "~/lib/purchase.server";
+import { deletePurchase, repushShopify, resendReceipt, resyncSheet } from "~/lib/purchase.server";
 import { shopifyAdminBase } from "~/lib/shopify.server";
 
 export const meta: MetaFunction = () => [{ title: "Purchase · Buying Desk" }];
@@ -36,6 +37,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const form = await request.formData();
   const intent = String(form.get("intent") || "");
 
+  if (intent === "delete") {
+    await deletePurchase(id);
+    return redirect("/admin/purchases?deleted=1");
+  }
+
   let result: { ok: boolean; message: string };
   if (intent === "repush") result = await repushShopify(id);
   else if (intent === "resend") result = await resendReceipt(id);
@@ -53,6 +59,7 @@ export default function PurchaseDetail() {
   const isNew = params.get("new") === "1";
   const submittingIntent =
     nav.state === "submitting" ? String(nav.formData?.get("intent") || "") : "";
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const profit = p.priceCents - p.costCents;
 
@@ -226,6 +233,39 @@ export default function PurchaseDetail() {
               </Form>
             }
           />
+        </div>
+
+        <div className="card" style={{ borderColor: "rgba(248,113,113,0.35)" }}>
+          <h2 style={{ marginBottom: 6 }}>Danger zone</h2>
+          <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+            Permanently deletes this purchase record. Any draft already created in Shopify stays there —
+            remove it in Shopify if you want it gone.
+          </p>
+          {!confirmDelete ? (
+            <button type="button" className="btn danger" onClick={() => setConfirmDelete(true)}>
+              Delete purchase
+            </button>
+          ) : (
+            <div className="actions">
+              <span style={{ color: "var(--red)", fontWeight: 600, fontSize: 14 }}>
+                Delete this purchase permanently?
+              </span>
+              <Form method="post">
+                <button
+                  type="submit"
+                  name="intent"
+                  value="delete"
+                  className="btn danger"
+                  disabled={submittingIntent === "delete"}
+                >
+                  {submittingIntent === "delete" ? "Deleting…" : "Yes, delete"}
+                </button>
+              </Form>
+              <button type="button" className="btn ghost" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </Shell>

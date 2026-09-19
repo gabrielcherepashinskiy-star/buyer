@@ -32,12 +32,11 @@ export default function Login() {
   return (
     <div className="login-wrap">
       <div className="login-card">
-        <div className="brand" style={{ marginBottom: 6 }}>
-          <span className="dot" />
-          <span style={{ fontSize: 18 }}>Buying Desk</span>
+        <div style={{ textAlign: "center", marginBottom: 12 }}>
+          <img src="/logo.png" alt="SHOP SELECT NYC" style={{ width: 150, maxWidth: "70%", height: "auto" }} />
         </div>
-        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-          SHOP SELECT NYC · sign in
+        <p className="muted" style={{ marginTop: 0, fontSize: 13, textAlign: "center" }}>
+          Buying Desk · sign in
         </p>
         {actionData?.error ? <div className="alert err">{actionData.error}</div> : null}
         <Form method="post">

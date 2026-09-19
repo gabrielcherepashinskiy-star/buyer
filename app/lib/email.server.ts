@@ -372,6 +372,59 @@ export async function sendSellerConfirmationEmail(input: SellerConfirmationEmail
   });
 }
 
+export type QuoteEmailInput = {
+  businessName: string;
+  businessEmail: string;
+  contactName: string;
+  contactEmail: string;
+  quoteCents: number;
+  message?: string;
+};
+
+/** Send a counteroffer / quote to a seller for their submission. */
+export async function sendQuoteEmail(input: QuoteEmailInput): Promise<void> {
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:540px;margin:0 auto;color:#17171b">
+    <div style="border-bottom:3px solid #3b82f6;padding-bottom:12px;margin-bottom:18px">
+      <div style="font-size:16px;font-weight:800">${escapeHtml(input.businessName)}</div>
+      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">YOUR QUOTE</div>
+    </div>
+    <p style="font-size:15px">Hi ${escapeHtml(input.contactName.split(" ")[0] || input.contactName)},</p>
+    <p style="font-size:15px;line-height:1.5">
+      Thanks for submitting your items to <strong>${escapeHtml(
+        input.businessName
+      )}</strong>. After reviewing them, here's our offer:
+    </p>
+    <div style="text-align:center;margin:18px 0;padding:20px;background:#f4f8ff;border:1px solid #dbe8ff;border-radius:12px">
+      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">OUR OFFER</div>
+      <div style="font-size:34px;font-weight:800;color:#3b82f6;margin-top:4px">${usd(
+        input.quoteCents,
+        "USD"
+      )}</div>
+    </div>
+    ${
+      input.message
+        ? `<p style="font-size:15px;line-height:1.5;white-space:pre-wrap">${escapeHtml(input.message)}</p>`
+        : ""
+    }
+    <p style="font-size:14px;line-height:1.5">
+      If that works for you, just reply to this email and we'll arrange the next step (drop-off or shipping).
+      Happy to discuss if you had something different in mind.
+    </p>
+    <p style="font-size:12px;color:#7a7a85;line-height:1.5;margin-top:16px">
+      This quote is an offer, not a binding agreement, and may be adjusted once we inspect the item(s) in person.
+    </p>
+    <p style="font-size:13px;color:#7a7a85;margin-top:16px">— ${escapeHtml(input.businessName)}</p>
+  </div>`;
+
+  await sendEmail({
+    to: [input.contactEmail],
+    subject: `Your quote from ${input.businessName}`,
+    html,
+    replyTo: input.businessEmail || undefined,
+  });
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

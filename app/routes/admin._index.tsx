@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { Link, useLoaderData, useNavigate } from "@remix-run/react";
 import { prisma } from "~/db.server";
 import { requireUser } from "~/lib/session.server";
 import { Shell } from "~/components/Shell";
@@ -70,6 +70,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function Dashboard() {
   const { user, stats, recent, config } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
   const notConfigured = !config.shopify || !config.sheets || !config.email;
 
   return (
@@ -156,20 +157,18 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {recent.map((p) => (
-                    <tr key={p.id} className="row-link">
+                    <tr
+                      key={p.id}
+                      className="row-link"
+                      onClick={() => navigate(`/admin/purchases/${p.id}`)}
+                      style={{ cursor: "pointer" }}
+                    >
                       <td>
-                        <Link to={`/admin/purchases/${p.id}`}>
-                          {new Date(p.createdAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </Link>
+                        {new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </td>
-                      <td>
-                        <Link to={`/admin/purchases/${p.id}`}>
-                          {p.brand ? `${p.brand} — ` : ""}
-                          {p.title}
-                        </Link>
+                      <td style={{ fontWeight: 600 }}>
+                        {p.brand ? `${p.brand} — ` : ""}
+                        {p.title}
                       </td>
                       <td className="mono muted">{p.sku}</td>
                       <td>{formatUSD(p.costCents)}</td>
