@@ -48,11 +48,12 @@ export async function action({ request }: ActionFunctionArgs) {
   return json({ ok: true });
 }
 
-const STATUSES = ["new", "reviewed", "quoted", "closed"];
+const STATUSES = ["new", "reviewed", "quoted", "accepted", "closed"];
 const STATUS_CLASS: Record<string, string> = {
   new: "pending",
   reviewed: "active",
   quoted: "active",
+  accepted: "active",
   closed: "skipped",
 };
 
@@ -148,7 +149,13 @@ export default function Submissions() {
                   </p>
                 ) : null}
 
-                <div className="actions" style={{ marginTop: 14 }}>
+                <div className="actions" style={{ marginTop: 14, marginBottom: 12 }}>
+                  <a className="btn" href={`/admin/buy?from=${s.id}`}>
+                    Accept → add to purchases
+                  </a>
+                </div>
+
+                <div className="actions">
                   <span className="muted" style={{ fontSize: 13 }}>Set status:</span>
                   {STATUSES.map((st) => (
                     <Form method="post" key={st}>

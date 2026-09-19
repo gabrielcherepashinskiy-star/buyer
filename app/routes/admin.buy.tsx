@@ -5,7 +5,8 @@ import { useMemo, useState } from "react";
 import { requireUser } from "~/lib/session.server";
 import { Shell } from "~/components/Shell";
 import { createBulkPurchase, type BulkRowInput } from "~/lib/purchase.server";
-import { toCents } from "~/lib/money";
+import { getSubmission, setSubmissionStatus } from "~/lib/submission.server";
+import { toCents, formatUSD } from "~/lib/money";
 
 export const meta: MetaFunction = () => [{ title: "New Purchase · Buying Desk" }];
 
@@ -35,7 +36,39 @@ const emptyRow = (): Row => ({
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUser(request);
-  return json({ user });
+  const url = new URL(request.url);
+  const from = url.searchParams.get("from");
+
+  let prefill: {
+    submissionId: string;
+    sellerName: string;
+    sellerEmail: string;
+    method: string;
+    items: { name: string; desiredPriceCents: number; notes: string | null }[];
+  } | null = null;
+
+  if (from) {
+    try {
+      const sub = await getSubmission(from);
+      if (sub) {
+        prefill = {
+          submissionId: sub.id,
+          sellerName: sub.contactName,
+          sellerEmail: sub.contactEmail,
+          method: sub.method,
+          items: sub.items.map((it) => ({
+            name: it.name,
+            desiredPriceCents: it.desiredPriceCents,
+            notes: it.notes,
+          })),
+        };
+      }
+    } catch (e) {
+      console.error("Could not load submission for prefill:", e);
+    }
+  }
+
+  return json({ user, prefill });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -87,6 +120,8 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ errors, values: { sellerName, sellerEmail } }, { status: 400 });
   }
 
+  const fromSubmission = String(form.get("fromSubmission") || "").trim();
+
   try {
     const { purchases } = await createBulkPurchase({
       sellerName,
@@ -96,6 +131,13 @@ export async function action({ request }: ActionFunctionArgs) {
       recordedBy: user.name,
       rows,
     });
+    if (fromSubmission) {
+      try {
+        await setSubmissionStatus(fromSubmission, "accepted");
+      } catch (e) {
+        console.error("Could not mark submission accepted:", e);
+      }
+    }
     return redirect(`/admin/purchases?created=${purchases.length}`);
   } catch (e) {
     console.error("Purchase failed:", e);
@@ -113,13 +155,23 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Buy() {
-  const { user } = useLoaderData<typeof loader>();
+  const { user, prefill } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
   const busy = nav.state === "submitting";
   const errors = actionData?.errors || [];
 
-  const [rows, setRows] = useState<Row[]>(() => [emptyRow(), emptyRow(), emptyRow(), emptyRow(), emptyRow()]);
+  const [rows, setRows] = useState<Row[]>(() => {
+    if (prefill && prefill.items.length > 0) {
+      return prefill.items.map((it) => ({
+        ...emptyRow(),
+        title: it.name,
+        // seller's free-text (size/condition hint) → notes go into size if short
+        size: it.notes && it.notes.length <= 12 ? it.notes : "",
+      }));
+    }
+    return [emptyRow(), emptyRow(), emptyRow(), emptyRow(), emptyRow()];
+  });
 
   const update = (i: number, key: keyof Row, val: string) => {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
@@ -189,8 +241,24 @@ export default function Buy() {
           </div>
         ) : null}
 
+        {prefill ? (
+          <div className="alert ok">
+            Accepting submission from <strong>{prefill.sellerName}</strong> —{" "}
+            {prefill.method === "ship" ? "shipping (PUA)" : "in-store drop-off"}. Their asking prices:{" "}
+            {prefill.items.map((it, i) => (
+              <span key={i}>
+                {i > 0 ? " · " : ""}
+                {it.name} {formatUSD(it.desiredPriceCents)}
+              </span>
+            ))}
+            . Enter <strong>your</strong> cost and resale price below; recording will mark this
+            submission accepted.
+          </div>
+        ) : null}
+
         <Form method="post">
           <input type="hidden" name="rowsJson" value={JSON.stringify(rows)} readOnly />
+          {prefill ? <input type="hidden" name="fromSubmission" value={prefill.submissionId} readOnly /> : null}
 
           <div className="card">
             <h2>Seller</h2>
@@ -202,13 +270,13 @@ export default function Buy() {
                 <label htmlFor="sellerName">
                   Full name <span className="req">*</span>
                 </label>
-                <input id="sellerName" name="sellerName" placeholder="As shown on their ID" defaultValue={actionData?.values?.sellerName || ""} required />
+                <input id="sellerName" name="sellerName" placeholder="As shown on their ID" defaultValue={actionData?.values?.sellerName || prefill?.sellerName || ""} required />
               </div>
               <div className="field">
                 <label htmlFor="sellerEmail">
                   Email <span className="req">*</span>
                 </label>
-                <input id="sellerEmail" name="sellerEmail" type="email" placeholder="seller@email.com" defaultValue={actionData?.values?.sellerEmail || ""} required />
+                <input id="sellerEmail" name="sellerEmail" type="email" placeholder="seller@email.com" defaultValue={actionData?.values?.sellerEmail || prefill?.sellerEmail || ""} required />
               </div>
               <div className="field full">
                 <label htmlFor="sellerId">

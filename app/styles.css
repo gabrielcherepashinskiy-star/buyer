@@ -6,9 +6,9 @@
   --line: #2a2a31;
   --text: #f4f4f6;
   --muted: #9a9aa5;
-  --violet: #a855f7;
-  --violet-2: #c084fc;
-  --violet-dim: rgba(168, 85, 247, 0.14);
+  --violet: #3b82f6;
+  --violet-2: #60a5fa;
+  --violet-dim: rgba(59, 130, 246, 0.16);
   --green: #34d399;
   --red: #f87171;
   --amber: #fbbf24;
@@ -272,7 +272,7 @@ fieldset {
   justify-content: center;
   gap: 8px;
   background: var(--violet);
-  color: #14061f;
+  color: #ffffff;
   border: none;
   border-radius: 11px;
   padding: 12px 20px;
@@ -439,7 +439,7 @@ tbody tr:hover {
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background: radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.16), transparent 60%), var(--bg);
+  background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.18), transparent 60%), var(--bg);
 }
 
 .sell-card {
@@ -478,7 +478,7 @@ tbody tr:hover {
 }
 
 .step-dot.active {
-  color: #14061f;
+  color: #ffffff;
   background: var(--violet);
   border-color: var(--violet);
 }
@@ -565,7 +565,7 @@ tbody tr:hover {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: radial-gradient(circle at 30% 20%, rgba(168, 85, 247, 0.14), transparent 55%),
+  background: radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.16), transparent 55%),
     var(--bg);
 }
 

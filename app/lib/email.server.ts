@@ -76,7 +76,7 @@ export async function sendReceiptEmail(input: ReceiptEmailInput): Promise<void> 
 
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#17171b">
-    <div style="border-bottom:3px solid #a855f7;padding-bottom:14px;margin-bottom:20px">
+    <div style="border-bottom:3px solid #3b82f6;padding-bottom:14px;margin-bottom:20px">
       <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em">${escapeHtml(
         input.businessName
       )}</div>
@@ -105,7 +105,7 @@ export async function sendReceiptEmail(input: ReceiptEmailInput): Promise<void> 
           ? `<tr><td style="padding:8px 0;color:#7a7a85">Quantity</td><td style="padding:8px 0;text-align:right">${input.quantity}</td></tr>`
           : ""
       }
-      <tr><td style="padding:14px 0 0;color:#7a7a85;border-top:1px solid #eee">Amount paid</td><td style="padding:14px 0 0;text-align:right;font-weight:800;font-size:18px;color:#a855f7;border-top:1px solid #eee">${usd(
+      <tr><td style="padding:14px 0 0;color:#7a7a85;border-top:1px solid #eee">Amount paid</td><td style="padding:14px 0 0;text-align:right;font-weight:800;font-size:18px;color:#3b82f6;border-top:1px solid #eee">${usd(
         input.amountPaidCents,
         input.currency
       )}</td></tr>
@@ -176,7 +176,7 @@ export async function sendBatchReceiptEmail(input: BatchReceiptEmailInput): Prom
 
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#17171b">
-    <div style="border-bottom:3px solid #a855f7;padding-bottom:14px;margin-bottom:20px">
+    <div style="border-bottom:3px solid #3b82f6;padding-bottom:14px;margin-bottom:20px">
       <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em">${escapeHtml(input.businessName)}</div>
       <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">PURCHASE RECEIPT</div>
     </div>
@@ -195,7 +195,7 @@ export async function sendBatchReceiptEmail(input: BatchReceiptEmailInput): Prom
     <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:14px">
       ${rows}
       <tr><td style="padding:14px 0 0;border-top:2px solid #17171b;font-weight:800">Total paid</td>
-      <td style="padding:14px 0 0;border-top:2px solid #17171b;text-align:right;font-weight:800;font-size:18px;color:#a855f7">${usd(
+      <td style="padding:14px 0 0;border-top:2px solid #17171b;text-align:right;font-weight:800;font-size:18px;color:#3b82f6">${usd(
         total,
         input.currency
       )}</td></tr>
@@ -265,7 +265,7 @@ export async function sendSellerSubmissionEmail(input: SellerSubmissionEmailInpu
 
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;color:#17171b">
-    <div style="border-bottom:3px solid #a855f7;padding-bottom:12px;margin-bottom:18px">
+    <div style="border-bottom:3px solid #3b82f6;padding-bottom:12px;margin-bottom:18px">
       <div style="font-size:16px;font-weight:800">${escapeHtml(input.businessName)}</div>
       <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">NEW SELL REQUEST</div>
     </div>
@@ -287,7 +287,7 @@ export async function sendSellerSubmissionEmail(input: SellerSubmissionEmailInpu
       <tr><th style="text-align:left;padding-bottom:6px;color:#7a7a85;font-size:12px">ITEM</th><th style="text-align:right;padding-bottom:6px;color:#7a7a85;font-size:12px">ASKING</th></tr>
       ${rows}
       <tr><td style="padding-top:12px;border-top:2px solid #17171b;font-weight:800">Total asking</td>
-      <td style="padding-top:12px;border-top:2px solid #17171b;text-align:right;font-weight:800;color:#a855f7">${usd(
+      <td style="padding-top:12px;border-top:2px solid #17171b;text-align:right;font-weight:800;color:#3b82f6">${usd(
         total,
         "USD"
       )}</td></tr>
@@ -337,7 +337,7 @@ export async function sendSellerConfirmationEmail(input: SellerConfirmationEmail
 
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#17171b">
-    <div style="border-bottom:3px solid #a855f7;padding-bottom:12px;margin-bottom:18px">
+    <div style="border-bottom:3px solid #3b82f6;padding-bottom:12px;margin-bottom:18px">
       <div style="font-size:16px;font-weight:800">${escapeHtml(input.businessName)}</div>
       <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">SUBMISSION RECEIVED</div>
     </div>
@@ -351,7 +351,7 @@ export async function sendSellerConfirmationEmail(input: SellerConfirmationEmail
       <tr><th style="text-align:left;padding-bottom:6px;color:#7a7a85;font-size:12px">ITEM</th><th style="text-align:right;padding-bottom:6px;color:#7a7a85;font-size:12px">YOUR ASKING PRICE</th></tr>
       ${rows}
       <tr><td style="padding-top:12px;border-top:2px solid #17171b;font-weight:800">Total</td>
-      <td style="padding-top:12px;border-top:2px solid #17171b;text-align:right;font-weight:800;color:#a855f7">${usd(
+      <td style="padding-top:12px;border-top:2px solid #17171b;text-align:right;font-weight:800;color:#3b82f6">${usd(
         total,
         "USD"
       )}</td></tr>

@@ -22,7 +22,7 @@ export type ReceiptData = {
   currency: string;
 };
 
-const VIOLET = rgb(0.66, 0.33, 0.97);
+const VIOLET = rgb(0.231, 0.51, 0.965);
 const DARK = rgb(0.09, 0.09, 0.1);
 const GRAY = rgb(0.42, 0.42, 0.46);
 const LINE = rgb(0.85, 0.85, 0.88);
@@ -99,7 +99,7 @@ export async function renderReceiptPdf(data: ReceiptData): Promise<Uint8Array> {
   y -= 72;
 
   // Item table
-  page.drawRectangle({ x: margin, y: y - 6, width: width - margin * 2, height: 22, color: rgb(0.96, 0.94, 0.99) });
+  page.drawRectangle({ x: margin, y: y - 6, width: width - margin * 2, height: 22, color: rgb(0.92, 0.95, 0.99) });
   text("ITEM", margin + 8, y, { size: 9, font: bold, color: GRAY });
   text("CONDITION", margin + 250, y, { size: 9, font: bold, color: GRAY });
   text("SKU", margin + 350, y, { size: 9, font: bold, color: GRAY });
@@ -234,7 +234,7 @@ export async function renderBatchReceiptPdf(data: BatchReceiptData): Promise<Uin
   };
 
   const tableHead = () => {
-    page.drawRectangle({ x: margin, y: y - 6, width: pageW - margin * 2, height: 22, color: rgb(0.96, 0.94, 0.99) });
+    page.drawRectangle({ x: margin, y: y - 6, width: pageW - margin * 2, height: 22, color: rgb(0.92, 0.95, 0.99) });
     draw("ITEM", colItem, y, { size: 9, bold: true, color: GRAY });
     draw("CONDITION", colCond, y, { size: 9, bold: true, color: GRAY });
     draw("SKU", colSku, y, { size: 9, bold: true, color: GRAY });

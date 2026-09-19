@@ -102,8 +102,12 @@ export async function listSubmissions() {
   });
 }
 
+export async function getSubmission(id: string) {
+  return prisma.submission.findUnique({ where: { id }, include: { items: true, photos: true } });
+}
+
 export async function setSubmissionStatus(id: string, status: string) {
-  const allowed = ["new", "reviewed", "quoted", "closed"];
+  const allowed = ["new", "reviewed", "quoted", "accepted", "closed"];
   if (!allowed.includes(status)) return;
   await prisma.submission.update({ where: { id }, data: { status } });
 }

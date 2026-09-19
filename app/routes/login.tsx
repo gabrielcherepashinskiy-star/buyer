@@ -53,7 +53,7 @@ export default function Login() {
               autoCorrect="off"
               autoFocus
               required
-              placeholder="Gabriel"
+              placeholder="Username"
             />
           </div>
           <div className="field" style={{ marginTop: 12 }}>
