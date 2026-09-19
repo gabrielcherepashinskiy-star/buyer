@@ -95,12 +95,26 @@ export async function createSubmission(input: CreateSubmissionInput) {
   return submission;
 }
 
-export async function listSubmissions() {
+export async function listSubmissions(statuses?: string[]) {
   return prisma.submission.findMany({
+    where: statuses && statuses.length ? { status: { in: statuses } } : undefined,
     orderBy: { createdAt: "desc" },
     include: { items: true, photos: true },
     take: 300,
   });
+}
+
+/** Permanently delete a single submission (and its items/photos via cascade). */
+export async function deleteSubmission(id: string) {
+  await prisma.submission.delete({ where: { id } });
+}
+
+/** Bulk-delete all closed/accepted submissions. Returns how many were removed. */
+export async function clearClosedSubmissions(): Promise<number> {
+  const res = await prisma.submission.deleteMany({
+    where: { status: { in: ["accepted", "closed"] } },
+  });
+  return res.count;
 }
 
 export async function getSubmission(id: string) {
@@ -115,6 +129,10 @@ export async function setSubmissionStatus(id: string, status: string) {
 
 export async function newSubmissionCount() {
   return prisma.submission.count({ where: { status: "new" } });
+}
+
+export async function openSubmissionCount() {
+  return prisma.submission.count({ where: { status: { in: ["new", "reviewed", "quoted"] } } });
 }
 
 /** Email a counteroffer/quote to the seller and mark the submission "quoted". */

@@ -6,6 +6,17 @@ export function emailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM);
 }
 
+// Branded email header with the logo. The logo is served from the app's public
+// URL (APP_URL, default sell.shopselectnyc.com); alt text falls back to the name
+// if the image can't load.
+function emailHeader(businessName: string, label: string): string {
+  const base = (process.env.APP_URL || "https://sell.shopselectnyc.com").replace(/\/$/, "");
+  return `<div style="border-bottom:3px solid #3b82f6;padding-bottom:14px;margin-bottom:20px">
+      <img src="${base}/logo-black.png" alt="${escapeHtml(businessName)}" width="132" style="display:block;height:auto;max-width:132px;margin-bottom:8px" />
+      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">${escapeHtml(label)}</div>
+    </div>`;
+}
+
 async function sendEmail(opts: {
   to: string[];
   subject: string;
@@ -76,12 +87,7 @@ export async function sendReceiptEmail(input: ReceiptEmailInput): Promise<void> 
 
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#17171b">
-    <div style="border-bottom:3px solid #3b82f6;padding-bottom:14px;margin-bottom:20px">
-      <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em">${escapeHtml(
-        input.businessName
-      )}</div>
-      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">PURCHASE RECEIPT</div>
-    </div>
+    ${emailHeader(input.businessName, "PURCHASE RECEIPT")}
     <p style="font-size:15px">Hi ${escapeHtml(input.sellerName.split(" ")[0] || input.sellerName)},</p>
     <p style="font-size:15px;line-height:1.5">
       Thank you — this confirms that <strong>${escapeHtml(
@@ -176,10 +182,7 @@ export async function sendBatchReceiptEmail(input: BatchReceiptEmailInput): Prom
 
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#17171b">
-    <div style="border-bottom:3px solid #3b82f6;padding-bottom:14px;margin-bottom:20px">
-      <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em">${escapeHtml(input.businessName)}</div>
-      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">PURCHASE RECEIPT</div>
-    </div>
+    ${emailHeader(input.businessName, "PURCHASE RECEIPT")}
     <p style="font-size:15px">Hi ${escapeHtml(input.sellerName.split(" ")[0] || input.sellerName)},</p>
     <p style="font-size:15px;line-height:1.5">
       Thank you — this confirms that <strong>${escapeHtml(
@@ -265,10 +268,7 @@ export async function sendSellerSubmissionEmail(input: SellerSubmissionEmailInpu
 
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;color:#17171b">
-    <div style="border-bottom:3px solid #3b82f6;padding-bottom:12px;margin-bottom:18px">
-      <div style="font-size:16px;font-weight:800">${escapeHtml(input.businessName)}</div>
-      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">NEW SELL REQUEST</div>
-    </div>
+    ${emailHeader(input.businessName, "NEW SELL REQUEST")}
     <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:14px">
       <tr><td style="padding:4px 0;color:#7a7a85;width:120px">Seller</td><td style="padding:4px 0;font-weight:700">${escapeHtml(
         input.contactName
@@ -337,10 +337,7 @@ export async function sendSellerConfirmationEmail(input: SellerConfirmationEmail
 
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#17171b">
-    <div style="border-bottom:3px solid #3b82f6;padding-bottom:12px;margin-bottom:18px">
-      <div style="font-size:16px;font-weight:800">${escapeHtml(input.businessName)}</div>
-      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">SUBMISSION RECEIVED</div>
-    </div>
+    ${emailHeader(input.businessName, "SUBMISSION RECEIVED")}
     <p style="font-size:15px">Hi ${escapeHtml(input.contactName.split(" ")[0] || input.contactName)},</p>
     <p style="font-size:15px;line-height:1.5">
       Thanks for submitting your items to <strong>${escapeHtml(
@@ -385,10 +382,7 @@ export type QuoteEmailInput = {
 export async function sendQuoteEmail(input: QuoteEmailInput): Promise<void> {
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:540px;margin:0 auto;color:#17171b">
-    <div style="border-bottom:3px solid #3b82f6;padding-bottom:12px;margin-bottom:18px">
-      <div style="font-size:16px;font-weight:800">${escapeHtml(input.businessName)}</div>
-      <div style="font-size:12px;color:#7a7a85;letter-spacing:0.08em;font-weight:600">YOUR QUOTE</div>
-    </div>
+    ${emailHeader(input.businessName, "YOUR QUOTE")}
     <p style="font-size:15px">Hi ${escapeHtml(input.contactName.split(" ")[0] || input.contactName)},</p>
     <p style="font-size:15px;line-height:1.5">
       Thanks for submitting your items to <strong>${escapeHtml(

@@ -1,23 +1,46 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { Form, Link, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { useState } from "react";
 import { requireUser } from "~/lib/session.server";
 import { Shell } from "~/components/Shell";
 import { formatUSD, toCents } from "~/lib/money";
-import { listSubmissions, sendQuote, setSubmissionStatus } from "~/lib/submission.server";
+import {
+  clearClosedSubmissions,
+  deleteSubmission,
+  listSubmissions,
+  openSubmissionCount,
+  sendQuote,
+  setSubmissionStatus,
+} from "~/lib/submission.server";
+
+const VIEWS: Record<string, string[] | undefined> = {
+  open: ["new", "reviewed", "quoted"],
+  closed: ["accepted", "closed"],
+  all: undefined,
+};
 
 export const meta: MetaFunction = () => [{ title: "Submissions · Buying Desk" }];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUser(request);
+  const url = new URL(request.url);
+  const view = ["open", "closed", "all"].includes(url.searchParams.get("view") || "")
+    ? (url.searchParams.get("view") as "open" | "closed" | "all")
+    : "open";
+
   let submissions: Awaited<ReturnType<typeof listSubmissions>> = [];
+  let openCount = 0;
   try {
-    submissions = await listSubmissions();
+    submissions = await listSubmissions(VIEWS[view]);
+    openCount = await openSubmissionCount();
   } catch (e) {
     console.error("Could not load submissions (redeploy to migrate?):", e);
   }
   return json({
     user,
+    view,
+    openCount,
     submissions: submissions.map((s) => ({
       id: s.id,
       createdAt: s.createdAt.toISOString(),
@@ -52,6 +75,16 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ result });
   }
 
+  if (intent === "delete") {
+    if (id) await deleteSubmission(id);
+    return json({ result: { ok: true, message: "Submission deleted." } });
+  }
+
+  if (intent === "clearClosed") {
+    const n = await clearClosedSubmissions();
+    return json({ result: { ok: true, message: `Cleared ${n} closed submission${n === 1 ? "" : "s"}.` } });
+  }
+
   const status = String(form.get("status") || "");
   if (id && status) await setSubmissionStatus(id, status);
   return json({ result: { ok: true, message: "" } });
@@ -67,9 +100,19 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 export default function Submissions() {
-  const { user, submissions } = useLoaderData<typeof loader>();
+  const { user, submissions, view, openCount } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  const tab = (key: string, label: string) => (
+    <Link
+      to={`/admin/submissions?view=${key}`}
+      className={`btn ${view === key ? "" : "ghost"} sm`}
+    >
+      {label}
+    </Link>
+  );
 
   return (
     <Shell user={user}>
@@ -78,8 +121,21 @@ export default function Submissions() {
           <div>
             <h1>Submissions</h1>
             <p className="muted" style={{ margin: 0 }}>
-              Sell requests from your public page. {submissions.filter((s) => s.status === "new").length} new.
+              {openCount} open · showing {view === "open" ? "open" : view === "closed" ? "closed" : "all"}
             </p>
+          </div>
+          <div className="actions">
+            {tab("open", "Open")}
+            {tab("closed", "Closed")}
+            {tab("all", "All")}
+            {view !== "open" ? (
+              <Form method="post" onSubmit={(e) => { if (!confirm("Permanently delete ALL closed/accepted submissions?")) e.preventDefault(); }}>
+                <input type="hidden" name="intent" value="clearClosed" />
+                <button type="submit" className="btn danger sm" disabled={nav.state !== "idle"}>
+                  Clear closed
+                </button>
+              </Form>
+            ) : null}
           </div>
         </div>
 
@@ -89,7 +145,9 @@ export default function Submissions() {
 
         {submissions.length === 0 ? (
           <div className="card">
-            <div className="empty">No submissions yet. They'll appear here as sellers submit.</div>
+            <div className="empty">
+              {view === "open" ? "No open submissions right now." : "Nothing here."}
+            </div>
           </div>
         ) : (
           submissions.map((s) => {
@@ -218,6 +276,26 @@ export default function Submissions() {
                       </button>
                     </Form>
                   ))}
+                  <div style={{ flex: 1 }} />
+                  {confirmId === s.id ? (
+                    <>
+                      <span style={{ color: "var(--red)", fontSize: 13, fontWeight: 600 }}>Delete?</span>
+                      <Form method="post">
+                        <input type="hidden" name="intent" value="delete" />
+                        <input type="hidden" name="id" value={s.id} />
+                        <button type="submit" className="btn danger sm" disabled={nav.state !== "idle"}>
+                          Yes, delete
+                        </button>
+                      </Form>
+                      <button type="button" className="btn ghost sm" onClick={() => setConfirmId(null)}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="btn danger sm" onClick={() => setConfirmId(s.id)}>
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             );
