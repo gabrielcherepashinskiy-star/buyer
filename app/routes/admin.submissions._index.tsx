@@ -53,6 +53,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       items: s.items.map((it) => ({
         id: it.id,
         name: it.name,
+        condition: it.condition,
+        size: it.size,
         desiredPriceCents: it.desiredPriceCents,
         quantity: it.quantity,
         notes: it.notes,
@@ -186,7 +188,9 @@ export default function Submissions() {
                     <thead>
                       <tr>
                         <th>Item</th>
-                        <th>Details</th>
+                        <th>Condition</th>
+                        <th>Size</th>
+                        <th>Notes</th>
                         <th style={{ textAlign: "right" }}>Asking</th>
                       </tr>
                     </thead>
@@ -197,6 +201,8 @@ export default function Submissions() {
                             {it.name}
                             {it.quantity > 1 ? <span className="muted"> ×{it.quantity}</span> : null}
                           </td>
+                          <td>{it.condition || "—"}</td>
+                          <td>{it.size || "—"}</td>
                           <td className="muted">{it.notes || "—"}</td>
                           <td style={{ textAlign: "right" }}>{formatUSD(it.desiredPriceCents)}</td>
                         </tr>

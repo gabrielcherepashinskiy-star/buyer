@@ -40,9 +40,13 @@ export function sheetsConfigured(): boolean {
 
 function getClient(): JWT {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  let key = process.env.GOOGLE_PRIVATE_KEY || "";
-  // Env-stored keys usually have escaped newlines.
-  key = key.replace(/\\n/g, "\n");
+  let key = (process.env.GOOGLE_PRIVATE_KEY || "").trim();
+  // Strip surrounding quotes if the value was pasted with them.
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1);
+  }
+  // Env-stored keys usually have escaped newlines; convert to real ones.
+  key = key.replace(/\\r/g, "").replace(/\\n/g, "\n");
   if (!email || !key) throw new Error("Google Sheets is not configured.");
   return new JWT({
     email,

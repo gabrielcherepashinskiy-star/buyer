@@ -8,6 +8,8 @@ import {
 
 export type SubmissionItemInput = {
   name: string;
+  condition?: string;
+  size?: string;
   desiredPriceCents: number;
   quantity: number;
   notes?: string;
@@ -36,6 +38,8 @@ export async function createSubmission(input: CreateSubmissionInput) {
       items: {
         create: input.items.map((it) => ({
           name: it.name,
+          condition: it.condition || null,
+          size: it.size || null,
           desiredPriceCents: it.desiredPriceCents,
           quantity: it.quantity,
           notes: it.notes || null,

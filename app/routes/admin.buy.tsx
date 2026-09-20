@@ -44,7 +44,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     sellerName: string;
     sellerEmail: string;
     method: string;
-    items: { name: string; desiredPriceCents: number; notes: string | null }[];
+    items: {
+      name: string;
+      condition: string | null;
+      size: string | null;
+      desiredPriceCents: number;
+      notes: string | null;
+    }[];
   } | null = null;
 
   if (from) {
@@ -58,6 +64,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
           method: sub.method,
           items: sub.items.map((it) => ({
             name: it.name,
+            condition: it.condition,
+            size: it.size,
             desiredPriceCents: it.desiredPriceCents,
             notes: it.notes,
           })),
@@ -166,8 +174,8 @@ export default function Buy() {
       return prefill.items.map((it) => ({
         ...emptyRow(),
         title: it.name,
-        // seller's free-text (size/condition hint) → notes go into size if short
-        size: it.notes && it.notes.length <= 12 ? it.notes : "",
+        condition: it.condition && CONDITIONS.includes(it.condition) ? it.condition : "",
+        size: it.size || "",
       }));
     }
     return [emptyRow(), emptyRow(), emptyRow(), emptyRow(), emptyRow()];

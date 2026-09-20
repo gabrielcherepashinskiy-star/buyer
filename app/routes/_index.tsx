@@ -18,7 +18,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 }
 
-type ItemInput = { name: string; price: string; notes: string };
+type ItemInput = { name: string; condition: string; size: string; price: string; notes: string };
+
+const CONDITIONS = ["New", "Like New", "Excellent", "Very Good", "Good", "Fair"];
 
 export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
@@ -62,6 +64,8 @@ export async function action({ request }: ActionFunctionArgs) {
       note,
       items: filled.map((i) => ({
         name: i.name.trim(),
+        condition: (i.condition || "").trim() || undefined,
+        size: (i.size || "").trim() || undefined,
         desiredPriceCents: toCents(i.price),
         quantity: 1,
         notes: (i.notes || "").trim() || undefined,
@@ -109,7 +113,7 @@ function ThankYou({ businessName }: { businessName: string }) {
   );
 }
 
-const emptyItem = (): ItemInput => ({ name: "", price: "", notes: "" });
+const emptyItem = (): ItemInput => ({ name: "", condition: "", size: "", price: "", notes: "" });
 
 // Shrink a phone photo in the browser to a small JPEG data URL before upload.
 function compressImage(file: File, maxDim = 1200, quality = 0.65): Promise<string> {
@@ -278,8 +282,17 @@ function Wizard({ businessName }: { businessName: string }) {
                     <div style={{ flex: 1 }}>
                       <input value={it.name} onChange={(e) => updateItem(i, "name", e.target.value)} placeholder={`Item ${i + 1} — e.g. Louis Vuitton Neverfull`} />
                       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                        <select style={{ flex: 1 }} value={it.condition} onChange={(e) => updateItem(i, "condition", e.target.value)}>
+                          <option value="">Condition…</option>
+                          {CONDITIONS.map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                        <input style={{ flex: 1 }} value={it.size} onChange={(e) => updateItem(i, "size", e.target.value)} placeholder="Size (if any)" />
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                         <input style={{ flex: 1 }} value={it.price} onChange={(e) => updateItem(i, "price", e.target.value)} inputMode="decimal" placeholder="Desired price $" />
-                        <input style={{ flex: 1.4 }} value={it.notes} onChange={(e) => updateItem(i, "notes", e.target.value)} placeholder="Size / condition (optional)" />
+                        <input style={{ flex: 1.4 }} value={it.notes} onChange={(e) => updateItem(i, "notes", e.target.value)} placeholder="Anything else (optional)" />
                       </div>
                     </div>
                     {items.length > 1 ? (
