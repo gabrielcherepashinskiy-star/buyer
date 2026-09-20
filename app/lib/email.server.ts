@@ -19,6 +19,7 @@ function emailHeader(businessName: string, label: string): string {
 
 async function sendEmail(opts: {
   to: string[];
+  bcc?: string[];
   subject: string;
   html: string;
   attachments?: Attachment[];
@@ -37,6 +38,7 @@ async function sendEmail(opts: {
     body: JSON.stringify({
       from,
       to: opts.to,
+      bcc: opts.bcc && opts.bcc.length ? opts.bcc : undefined,
       subject: opts.subject,
       html: opts.html,
       reply_to: opts.replyTo,
@@ -123,11 +125,12 @@ export async function sendReceiptEmail(input: ReceiptEmailInput): Promise<void> 
     <p style="font-size:13px;color:#7a7a85;margin-top:22px">— ${escapeHtml(input.businessName)}</p>
   </div>`;
 
-  const to = [input.sellerEmail];
-  if (input.ownerEmail && input.ownerEmail !== input.sellerEmail) to.push(input.ownerEmail);
+  const bcc =
+    input.ownerEmail && input.ownerEmail !== input.sellerEmail ? [input.ownerEmail] : undefined;
 
   await sendEmail({
-    to,
+    to: [input.sellerEmail],
+    bcc,
     subject: `Your ${input.businessName} purchase receipt — ${input.receiptNumber}`,
     html,
     replyTo: input.businessEmail || input.ownerEmail || undefined,
@@ -210,11 +213,12 @@ export async function sendBatchReceiptEmail(input: BatchReceiptEmailInput): Prom
     <p style="font-size:13px;color:#7a7a85;margin-top:22px">— ${escapeHtml(input.businessName)}</p>
   </div>`;
 
-  const to = [input.sellerEmail];
-  if (input.ownerEmail && input.ownerEmail !== input.sellerEmail) to.push(input.ownerEmail);
+  const bcc =
+    input.ownerEmail && input.ownerEmail !== input.sellerEmail ? [input.ownerEmail] : undefined;
 
   await sendEmail({
-    to,
+    to: [input.sellerEmail],
+    bcc,
     subject: `Your ${input.businessName} purchase receipt — ${input.receiptNumber}`,
     html,
     replyTo: input.businessEmail || input.ownerEmail || undefined,
