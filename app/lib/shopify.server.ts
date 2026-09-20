@@ -7,14 +7,16 @@ type GqlResult<T> = { data?: T; errors?: Array<{ message: string }> };
 function config() {
   const domainRaw = process.env.SHOPIFY_STORE_DOMAIN || "";
   const domain = domainRaw.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  const token = process.env.SHOPIFY_ADMIN_TOKEN || "";
+  const token = process.env.SHOPIFY_ADMIN_TOKEN || ""; // legacy static token (shpat_)
+  const clientId = process.env.SHOPIFY_API_KEY || ""; // dev-dashboard Client ID
+  const clientSecret = process.env.SHOPIFY_API_SECRET || ""; // dev-dashboard Client Secret
   const version = process.env.SHOPIFY_API_VERSION || "2025-07";
-  return { domain, token, version };
+  return { domain, token, clientId, clientSecret, version };
 }
 
 export function shopifyConfigured(): boolean {
-  const { domain, token } = config();
-  return Boolean(domain && token);
+  const { domain, token, clientId, clientSecret } = config();
+  return Boolean(domain && (token || (clientId && clientSecret)));
 }
 
 export function shopifyAdminBase(): string {
@@ -22,15 +24,55 @@ export function shopifyAdminBase(): string {
   return `https://${domain}`;
 }
 
+// Cache the client-credentials token in memory (valid ~24h); refresh early.
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
+/**
+ * Returns an Admin API access token. Prefers a static SHOPIFY_ADMIN_TOKEN
+ * (legacy custom apps). Otherwise exchanges the dev-dashboard Client ID +
+ * Secret for a short-lived token via the client-credentials grant.
+ */
+async function getAccessToken(): Promise<string> {
+  const { domain, token, clientId, clientSecret } = config();
+  if (token) return token;
+  if (!clientId || !clientSecret) {
+    throw new Error("Shopify is not configured (need SHOPIFY_ADMIN_TOKEN, or SHOPIFY_API_KEY + SHOPIFY_API_SECRET).");
+  }
+  const now = Date.now();
+  if (cachedToken && cachedToken.expiresAt - 60_000 > now) return cachedToken.value;
+
+  const res = await fetch(`https://${domain}/admin/oauth/access_token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
+    }).toString(),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Shopify token exchange HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const json = (await res.json()) as { access_token?: string; expires_in?: number };
+  if (!json.access_token) throw new Error("Shopify token exchange returned no access_token.");
+  cachedToken = {
+    value: json.access_token,
+    expiresAt: now + (json.expires_in ? json.expires_in * 1000 : 3600_000),
+  };
+  return cachedToken.value;
+}
+
 async function graphql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
-  const { domain, token, version } = config();
-  if (!domain || !token) throw new Error("Shopify is not configured (missing domain or token).");
+  const { domain, version } = config();
+  if (!domain) throw new Error("Shopify is not configured (missing store domain).");
+  const accessToken = await getAccessToken();
 
   const res = await fetch(`https://${domain}/admin/api/${version}/graphql.json`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Access-Token": token,
+      "X-Shopify-Access-Token": accessToken,
     },
     body: JSON.stringify({ query, variables }),
   });
