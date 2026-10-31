@@ -1,4 +1,4 @@
 {
-  "buildCommand": "npm run vercel-build",
+  "buildCommand": "npx prisma db push && npm run vercel-build",
   "framework": "remix"
 }
